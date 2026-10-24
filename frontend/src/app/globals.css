@@ -188,3 +188,55 @@ input[type="range"] {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
 }
+
+/* Theory map lane colours + synced highlight (amber) */
+.theory-page {
+  --lane-pitch: #6ec4ff;
+  --lane-pitch-bg: color-mix(in srgb, var(--lane-pitch) 18%, var(--color-panel));
+  --lane-chords: #7ddea0;
+  --lane-chords-bg: color-mix(in srgb, var(--lane-chords) 18%, var(--color-panel));
+  --lane-time: #f0b45a;
+  --lane-time-bg: color-mix(in srgb, var(--lane-time) 18%, var(--color-panel));
+  --lane-colour: #d6a0ff;
+  --lane-colour-bg: color-mix(in srgb, var(--lane-colour) 18%, var(--color-panel));
+  --lane-song: #f2b233;
+  --lane-song-bg: color-mix(in srgb, var(--lane-song) 18%, var(--color-panel));
+  --theory-highlight: #f5be45;
+}
+.theory-map-layout {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 820px) {
+  .theory-map-layout {
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+    align-items: start;
+  }
+}
+.theory-dot.is-on circle,
+.theory-cell.is-on {
+  fill: var(--theory-highlight) !important;
+  background: var(--theory-highlight) !important;
+  outline: 2px solid var(--theory-highlight);
+}
+/* Keep block fill dark — yellow highlight wash made white note labels unreadable. */
+.theory-block.is-on {
+  outline: 2px solid #fff;
+  box-shadow: 0 0 0 2px var(--theory-highlight);
+  filter: brightness(1.18);
+  z-index: 1;
+}
+.theory-dot.is-on {
+  transform: scale(1.2);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.theory-cell.is-on {
+  transform: scale(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theory-dot.is-on,
+  .theory-cell.is-on {
+    transform: none;
+  }
+}

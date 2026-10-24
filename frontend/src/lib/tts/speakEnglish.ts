@@ -54,6 +54,7 @@ export type SpeakEnglishOptions = {
 /**
  * Speak English with Microsoft Andrew when available.
  * Voice is assigned before rate — Chromium resets rate when voice is set.
+ * Resolves when the utterance ends, errors, is cancelled, or the signal aborts.
  */
 export async function speakEnglish(
   text: string,
@@ -78,5 +79,29 @@ export async function speakEnglish(
   if (voice) utter.voice = voice;
   utter.rate = rate;
 
-  window.speechSynthesis.speak(utter);
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener("abort", onAbort);
+      utter.onend = null;
+      utter.onerror = null;
+      resolve();
+    };
+    const onAbort = () => {
+      cancelEnglishSpeech();
+      finish();
+    };
+
+    utter.onend = () => finish();
+    utter.onerror = () => finish();
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+
+    if (options.signal?.aborted) {
+      finish();
+      return;
+    }
+    window.speechSynthesis.speak(utter);
+  });
 }

@@ -13,13 +13,19 @@ music-decoder/
 │   ├── app/services/   audio decoding, transcription, rhythm, harmonizer, solo, arrangement, progress, SQLite
 │   └── tests/          pytest (unit + API integration with synthesized hums)
 ├── frontend/           Next.js 16 + TypeScript + Tailwind 4 + Tone.js + Zustand
-│   ├── src/app/        pages: home, onboarding, record, decoder, learn, library, progress, settings
-│   ├── src/components/ Fretboard (SVG), TabView, FingerGPS, ChordDiagram, PianoRoll …
-│   ├── src/lib/        music model, fretboard geometry, TAB layout, YIN pitch detection, playback timeline
+│   ├── src/app/        pages: home, onboarding, record, decoder, learn (+ theory map), library, progress, settings
+│   ├── src/components/ Fretboard (SVG), TabView, FingerGPS, ChordDiagram, PianoRoll, theory map …
+│   ├── src/lib/        music model, fretboard geometry, TAB layout, YIN pitch detection, playback, theory content
 │   ├── tests/          vitest unit tests
 │   └── e2e/            Playwright browser tests (desktop + mobile)
 └── scripts/            dev.sh (run both servers), test-all.sh
 ```
+
+## Theory map
+
+**Theory map** (`/learn/theory`) explains 19 music terms on a concept map with a 26-step guided tour,
+playable examples (guitar / bass / drums via Tone.js), A/B principles, a six-step songwriting recipe,
+and a glossary. Content lives in `frontend/src/lib/theory/content.ts` (do not rewrite the data to fit UI).
 
 ## What's new in v4: modern-style riffs and finger animation
 

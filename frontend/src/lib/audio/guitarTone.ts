@@ -78,23 +78,22 @@ export interface PluckVoice {
  * pluck; filter sustain stays relatively high so harmonics linger while the note dies away.
  */
 export function pluckVoice({
-  partials = CLEAN_PARTIALS, ring = 9, hold = 0, release = 0.42, base = 1100, bright = 3.4,
-  attack = 0.0012, filterQ = 0.85, filterSustain = 0.4, filterDecay,
+  partials = CLEAN_PARTIALS, ring = 9, hold = 0, release = 0.55, base = 1100, bright = 3.4,
+  attack = 0.004, filterQ = 0.7, filterSustain = 0.4, filterDecay,
 }: {
   partials?: number[]; ring?: number; hold?: number; release?: number; base?: number; bright?: number;
   attack?: number; filterQ?: number; filterSustain?: number; filterDecay?: number;
 } = {}): PluckVoice {
   return {
     oscillator: { type: "custom", partials },
-    // Longer release avoids a hard zero-crossing crack when Learn ends a preview note.
+    // Softer attack + longer release: near-zero attack through drive is the main crack source.
     envelope: { attack, decay: ring, sustain: hold, release, decayCurve: "exponential" },
     filter: { type: "lowpass", rolloff: -12, Q: filterQ },
-    // Opens hard on the pluck; sustain keeps a bright shelf so the ring stays stringy, not flute-like.
     filterEnvelope: {
-      attack: Math.min(0.002, attack),
+      attack: Math.max(0.003, attack),
       decay: filterDecay ?? Math.min(1.1, ring * 0.45),
       sustain: filterSustain,
-      release: Math.max(release, 0.35),
+      release: Math.max(release, 0.45),
       baseFrequency: base,
       octaves: bright,
     },
@@ -110,14 +109,14 @@ function bassStringVoice(opts: {
     partials: opts.partials ?? BASS_STRING_PARTIALS,
     ring: opts.ring,
     hold: opts.hold ?? 0,
-    release: opts.release ?? 0.45,
+    release: opts.release ?? 0.55,
     // Filter sits in guitar body range (~400 Hz+), not sub-bass like a bass amp.
     base: opts.base ?? 420,
     bright: opts.bright ?? 2.2,
-    attack: 0.001,
-    filterQ: 1.1,
+    attack: 0.004,
+    filterQ: 0.85,
     filterSustain: 0.28,
-    filterDecay: 0.22,
+    filterDecay: 0.28,
   });
 }
 
@@ -144,12 +143,12 @@ export const TONES = {
   /** G / B / high-e — mid-range body, shared for less twang. */
   melodyG: gStringVoice({ ring: 8.5, release: 0.42 }),
   // Keep solo/lead rings short enough for full Play (long rings stacked dozens of notes → audio crash).
-  solo: pluckVoice({ partials: G_STRING_PARTIALS, ring: 2.6, hold: 0.12, release: 0.35, base: 620, bright: 2.5, filterSustain: 0.28 }),
-  soloLow: bassStringVoice({ ring: 2.8, hold: 0.1, release: 0.35, base: 440, bright: 2.2 }),
-  soloG: gStringVoice({ ring: 2.7, hold: 0.1, release: 0.34 }),
-  lead: pluckVoice({ partials: G_STRING_PARTIALS, ring: 2.4, hold: 0.14, release: 0.32, base: 640, bright: 2.5, filterSustain: 0.28 }),
-  leadLow: bassStringVoice({ ring: 2.6, hold: 0.12, release: 0.34, base: 460, bright: 2.3 }),
-  leadG: gStringVoice({ ring: 2.5, hold: 0.12, release: 0.32 }),
-  // Rhythm chords: short guitar chug, not bass thump (release still long enough to avoid a crack).
-  backing: bassStringVoice({ ring: 0.35, hold: 0.06, release: 0.12, base: 480, bright: 2.1 }),
+  solo: pluckVoice({ partials: G_STRING_PARTIALS, ring: 2.4, hold: 0.1, release: 0.5, base: 620, bright: 2.4, filterSustain: 0.26 }),
+  soloLow: bassStringVoice({ ring: 2.6, hold: 0.08, release: 0.5, base: 440, bright: 2.1 }),
+  soloG: gStringVoice({ ring: 2.5, hold: 0.08, release: 0.48 }),
+  lead: pluckVoice({ partials: G_STRING_PARTIALS, ring: 2.2, hold: 0.12, release: 0.48, base: 640, bright: 2.4, filterSustain: 0.26 }),
+  leadLow: bassStringVoice({ ring: 2.4, hold: 0.1, release: 0.5, base: 460, bright: 2.2 }),
+  leadG: gStringVoice({ ring: 2.3, hold: 0.1, release: 0.48 }),
+  // Rhythm: short chug, but release long enough that drive doesn't click when notes stop.
+  backing: bassStringVoice({ ring: 0.28, hold: 0.04, release: 0.22, base: 480, bright: 2.0 }),
 } as const;

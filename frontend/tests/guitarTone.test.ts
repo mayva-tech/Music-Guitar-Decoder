@@ -41,7 +41,7 @@ describe("plucked-string harmonics", () => {
 describe("pluck voice settings", () => {
   it("dies away instead of holding like an organ", () => {
     expect(TONES.melody.envelope.sustain).toBe(0);
-    expect(TONES.melody.envelope.attack).toBeLessThan(0.002);
+    expect(TONES.melody.envelope.attack).toBeLessThan(0.01);
     expect(TONES.melody.envelope.decayCurve).toBe("exponential");
     expect(TONES.lead.envelope.sustain).toBeLessThan(0.3);
   });

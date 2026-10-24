@@ -10,6 +10,7 @@ export const NAV = [
   { href: "/record", label: "Record melody", short: "Record", Icon: IconMic },
   { href: "/decoder", label: "Music decoder", short: "Decoder", Icon: IconWave },
   { href: "/learn", label: "Guitar learning", short: "Learn", Icon: IconGuitar },
+  { href: "/learn/theory", label: "Theory map", short: "Theory", Icon: IconWave },
   { href: "/riffs", label: "Riff practice", short: "Riffs", Icon: IconRiff },
   { href: "/library", label: "Song library", short: "Library", Icon: IconLibrary },
   { href: "/progress", label: "My progress", short: "Progress", Icon: IconChart },
@@ -19,7 +20,12 @@ export const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   if (path?.startsWith("/onboarding")) return <>{children}</>;
-  const active = (href: string) => (href === "/" ? path === "/" : path?.startsWith(href));
+  const active = (href: string) => {
+    if (href === "/") return path === "/";
+    // Keep Learn vs Theory map distinct (both share /learn prefix).
+    if (href === "/learn") return path === "/learn" || (path?.startsWith("/learn/") === true && !path.startsWith("/learn/theory"));
+    return path?.startsWith(href) === true;
+  };
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
       <aside className="hidden md:flex flex-col gap-8 border-r border-line px-5 py-7 sticky top-0 h-dvh">
@@ -55,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="px-4 pb-28 pt-2 md:px-10 md:pt-8 md:pb-12 min-w-0">{children}</main>
 
       <nav aria-label="Main" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-tolex/95 backdrop-blur border-t border-line">
-        <ul className="grid grid-cols-7">
+        <ul className="grid grid-cols-4 sm:grid-cols-8">
           {NAV.filter((n) => n.href !== "/settings").map(({ href, label, short, Icon }) => (
             <li key={href}>
               <Link

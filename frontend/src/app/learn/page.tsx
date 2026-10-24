@@ -479,6 +479,7 @@ export default function LearnPage() {
           <Link href="/record" className="btn btn-primary">Record a melody</Link>
           <Link href="/decoder" className="btn btn-ghost">Open the decoder</Link>
           <Link href="/library" className="btn btn-ghost">Open a saved song</Link>
+          <Link href="/learn/theory" className="btn btn-ghost">Open the Theory map</Link>
         </div>
       </div>
     );
@@ -505,6 +506,11 @@ export default function LearnPage() {
       {/* Compact header: title + part tabs on one row so the stage starts higher */}
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 max-w-2xl">
+          <p className="mb-2">
+            <Link href="/learn/theory" className="chip text-xs hover:bg-panel-2" data-testid="theory-map-link">
+              Theory map — hear every term with visuals
+            </Link>
+          </p>
           <h1 className="display text-[1.55rem] md:text-[1.9rem] leading-tight">{arr.title}</h1>
           <p className="mt-0.5 text-sm text-muted">
             {arr.key.name}, {Math.round(arr.tempo_bpm * tempo)} BPM, {arr.total_bars} bars · {arr.harmonization.label}
