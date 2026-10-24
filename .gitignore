@@ -1,0 +1,17 @@
+node_modules/
+.next/
+frontend/test-results/
+frontend/playwright-report/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/data/
+.venv/
+.env
+.env.local
+.env.*.local
+*.zip
+.DS_Store
+Thumbs.db
