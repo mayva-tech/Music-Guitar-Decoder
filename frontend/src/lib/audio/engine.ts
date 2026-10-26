@@ -233,18 +233,21 @@ export function playableEvents(events: Schedule["events"]): Schedule["events"] {
 }
 
 /** Bump when the output graph changes so a stale silent bus is rebuilt. */
-const GRAPH_GEN = 12;
+const GRAPH_GEN = 15;
+const ENGINE_STOP_FADE_SEC = 0.12;
 
 export class PlaybackEngine {
   private Tone: ToneModule | null = null;
   private channels: Record<TrackName, InstanceType<T["Channel"]>> | null = null;
   private room: InstanceType<T["Reverb"]> | null = null;
   private master: InstanceType<T["Limiter"]> | null = null;
+  private outBus: InstanceType<T["Gain"]> | null = null;
   private voices: Voices | null = null;
   private graphGen = 0;
   private startedAt = 0;
   private playing = false;
   private endTimer: ReturnType<typeof setTimeout> | null = null;
+  private fadeRestoreTimer: ReturnType<typeof setTimeout> | null = null;
 
   async init(): Promise<void> {
     const Tone = await loadTone();
@@ -253,6 +256,7 @@ export class PlaybackEngine {
     if (!this.channels || this.graphGen !== GRAPH_GEN) {
       try { this.room?.dispose(); } catch { /* ignore */ }
       try { this.master?.dispose(); } catch { /* ignore */ }
+      try { this.outBus?.dispose(); } catch { /* ignore */ }
       try {
         if (this.voices) disposeVoices(this.voices);
       } catch { /* ignore */ }
@@ -263,8 +267,10 @@ export class PlaybackEngine {
       this.channels = null;
       this.room = null;
       this.master = null;
-      // Theory-like master: gentle ceiling only — compressor pumping made playback feel like it staggered.
-      this.master = new Tone.Limiter(-2).toDestination();
+      this.outBus = null;
+      // Out bus lets Stop fade to silence instead of clicking on a hard cut.
+      this.outBus = new Tone.Gain(1).toDestination();
+      this.master = new Tone.Limiter(-2).connect(this.outBus);
       this.room = new Tone.Reverb({ decay: 1.0, preDelay: 0.01, wet: 0.06 }).connect(this.master);
       await this.room.ready;
       const mk = (db: number, roomy = true) => {
@@ -272,10 +278,26 @@ export class PlaybackEngine {
         c.volume.value = db;
         return c;
       };
-      this.channels = { melody: mk(-8), solo: mk(-8), lead: mk(-9), backing: mk(-14), bass: mk(-11), drums: mk(-10), click: mk(-10, false) };
+      // Guitar buses quieter; bass guitar channel unchanged.
+      this.channels = { melody: mk(-13), solo: mk(-13), lead: mk(-14), backing: mk(-17), bass: mk(-11), drums: mk(-10), click: mk(-10, false) };
       this.graphGen = GRAPH_GEN;
     }
     if (!this.voices) this.voices = buildVoices(Tone, this.channels);
+  }
+
+  /** Open the output bus fully (after a soft stop fade). */
+  private restoreOutBus() {
+    if (this.fadeRestoreTimer) {
+      clearTimeout(this.fadeRestoreTimer);
+      this.fadeRestoreTimer = null;
+    }
+    if (!this.outBus || !this.Tone) return;
+    try {
+      const g = this.outBus.gain;
+      const now = this.Tone.now();
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(1, now);
+    } catch { /* ignore */ }
   }
 
   setTracks(t: TrackToggles) {
@@ -297,6 +319,7 @@ export class PlaybackEngine {
   async play(schedule: Schedule, tracks: TrackToggles, onEnd?: () => void): Promise<void> {
     this.stop();
     await this.init();
+    this.restoreOutBus();
     const Tone = this.Tone!;
     const v = this.voices!;
     this.setTracks(tracks);
@@ -417,6 +440,7 @@ export class PlaybackEngine {
     string?: number,
   ) {
     await this.init();
+    this.restoreOutBus();
     this.channels!.melody.mute = false;
     if (part === "lead" || part === "solo") this.channels![part].mute = false;
     const v = this.voices!;
@@ -448,18 +472,39 @@ export class PlaybackEngine {
     } catch { /* ignore */ }
   }
 
-  /** Softly end held notes. Keep the voice graph (Theory style) — rebuild-on-stop was CPU-heavy and cut audio mid-phrase. */
+  /**
+   * Soft stop for Learn / Riffs / Decoder: fade the out bus first, then release
+   * voices (release-at-full-volume was the hard cut). Same idea as Theory/By ear.
+   */
   stop() {
     if (this.endTimer) clearTimeout(this.endTimer);
     this.endTimer = null;
     this.playing = false;
-    this.releaseHeld();
     if (this.Tone) {
       try {
         this.Tone.Transport.stop();
         this.Tone.Transport.cancel(0);
         this.Tone.Transport.seconds = 0;
       } catch { /* ignore */ }
+    }
+    if (this.outBus && this.Tone) {
+      try {
+        const now = this.Tone.now();
+        const g = this.outBus.gain;
+        const cur = typeof g.value === "number" ? g.value : 1;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(Math.max(cur, 0.0001), now);
+        g.linearRampToValueAtTime(0, now + ENGINE_STOP_FADE_SEC);
+      } catch { /* ignore */ }
+      if (this.fadeRestoreTimer) clearTimeout(this.fadeRestoreTimer);
+      const fadeMs = Math.ceil(ENGINE_STOP_FADE_SEC * 1000);
+      // Release under silence so envelopes don't click.
+      this.fadeRestoreTimer = setTimeout(() => {
+        this.releaseHeld();
+        this.restoreOutBus();
+      }, fadeMs + 40);
+    } else {
+      this.releaseHeld();
     }
   }
 }

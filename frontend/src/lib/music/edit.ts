@@ -26,6 +26,39 @@ export function setDuration(m: DetectedMelody, id: string, beats: number): Detec
   return { ...m, notes: ns };
 }
 
+const snapHalf = (beats: number) => Math.round(beats * 2) / 2;
+
+/** Move a note in time and/or pitch, and/or resize its length. Snaps to ½-beat and avoids overlaps. */
+export function moveNote(
+  m: DetectedMelody,
+  id: string,
+  patch: { start_beat?: number; midi?: number; duration_beats?: number },
+): DetectedMelody {
+  const ns = sorted(m.notes);
+  const i = ns.findIndex((n) => n.id === id);
+  if (i < 0) return m;
+  const n = ns[i];
+  const midi = Math.min(96, Math.max(28, Math.round(patch.midi ?? n.midi)));
+  let start = snapHalf(patch.start_beat ?? n.start_beat);
+  let dur = snapHalf(patch.duration_beats ?? n.duration_beats);
+
+  const prevEnd = i > 0 ? ns[i - 1].start_beat + ns[i - 1].duration_beats : 0;
+  const nextStart = i + 1 < ns.length ? ns[i + 1].start_beat : Infinity;
+  start = Math.max(0, prevEnd, Math.min(start, Number.isFinite(nextStart) ? nextStart - 0.5 : start));
+  const room = nextStart - start;
+  dur = Math.max(0.5, Math.min(dur, room, 8));
+
+  if (midi === n.midi && start === n.start_beat && dur === n.duration_beats) return m;
+  const timingChanged = start !== n.start_beat || dur !== n.duration_beats;
+  ns[i] = edited(n, {
+    midi,
+    start_beat: start,
+    duration_beats: dur,
+    ...(timingChanged ? { start_sec: null, duration_sec: null } : {}),
+  });
+  return { ...m, notes: ns };
+}
+
 export function deleteNote(m: DetectedMelody, id: string): DetectedMelody {
   return { ...m, notes: m.notes.filter((n) => n.id !== id) };
 }

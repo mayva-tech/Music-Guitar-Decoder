@@ -11,6 +11,9 @@ export const NAV = [
   { href: "/decoder", label: "Music decoder", short: "Decoder", Icon: IconWave },
   { href: "/learn", label: "Guitar learning", short: "Learn", Icon: IconGuitar },
   { href: "/learn/theory", label: "Theory map", short: "Theory", Icon: IconWave },
+  { href: "/learn/solo", label: "Lead solos", short: "Solos", Icon: IconRiff },
+  { href: "/learn/find", label: "Find", short: "Find", Icon: IconLibrary },
+  { href: "/learn/by-ear", label: "Play by ear", short: "By ear", Icon: IconMic },
   { href: "/riffs", label: "Riff practice", short: "Riffs", Icon: IconRiff },
   { href: "/library", label: "Song library", short: "Library", Icon: IconLibrary },
   { href: "/progress", label: "My progress", short: "Progress", Icon: IconChart },
@@ -22,8 +25,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (path?.startsWith("/onboarding")) return <>{children}</>;
   const active = (href: string) => {
     if (href === "/") return path === "/";
-    // Keep Learn vs Theory map distinct (both share /learn prefix).
-    if (href === "/learn") return path === "/learn" || (path?.startsWith("/learn/") === true && !path.startsWith("/learn/theory"));
+    // Keep Learn vs Theory / By ear distinct (they share the /learn prefix).
+    if (href === "/learn") {
+      return (
+        path === "/learn" ||
+        (path?.startsWith("/learn/") === true &&
+          !path.startsWith("/learn/theory") &&
+          !path.startsWith("/learn/by-ear") &&
+          !path.startsWith("/learn/solo") &&
+          !path.startsWith("/learn/find"))
+      );
+    }
     return path?.startsWith(href) === true;
   };
   return (

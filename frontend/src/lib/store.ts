@@ -27,6 +27,7 @@ export const DEFAULT_PREFS: UserPreferences = {
   animateHand: true,
   developerMode: false,
   autoReadAloud: true,
+  leadTone: "clean",
 };
 
 export interface AppState {

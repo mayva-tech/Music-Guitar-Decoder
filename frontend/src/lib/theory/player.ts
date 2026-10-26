@@ -2,20 +2,39 @@
  * Plays TheoryExample events through Tone, lighting visuals via onHighlight.
  * Uses the app guitar/bass/drum voices where possible; organ is a plain sine.
  */
-import { getEngine, loadTone } from "@/lib/audio/engine";
+import { getEngine, loadTone, playLead } from "@/lib/audio/engine";
+import { articulation } from "@/lib/audio/timeline";
 import { midiToFreq } from "@/lib/music/theory";
-import { TONES, warmToneKind } from "@/lib/audio/guitarTone";
-import type { TheoryExample, TheoryEvent, Timbre } from "./content";
+import { TONES, warmToneKind, type WarmToneKind } from "@/lib/audio/guitarTone";
+import type { PlayableNote } from "@/lib/types";
+import type { TheoryEvent, Timbre } from "./content";
+import type { Sound } from "./ear";
 
 type ToneMod = typeof import("tone");
 
+export interface PlayOptions {
+  /** Lead line (lick notes, beats relative to the example start) played with playLead + articulation. */
+  lead?: PlayableNote[];
+  /** "clean" = the app's lead path; "crunch" adds a mild waveshaper before the cab filter. */
+  leadTone?: "clean" | "crunch";
+  /** Reschedule the example back to back until stop(). */
+  loop?: boolean;
+  /**
+   * Looping only: called at the start of every pass after the first to get the example to play
+   * (so a tempo change applies from the next loop). Falls back to the original example.
+   */
+  nextExample?: () => Sound;
+}
+
 export interface TheoryPlayer {
-  play(ex: TheoryExample, onHighlight: (id: string, on: boolean) => void): Promise<void>;
+  /** Accepts a full TheoryExample or a Sound (drills have no visual). */
+  play(ex: Sound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void>;
   stop(): void;
   readonly playing: boolean;
 }
 
 interface Kit {
+  bus: import("tone").Gain;
   pluckBright: import("tone").PolySynth;
   pluckWarm: import("tone").PolySynth;
   pluckNormal: import("tone").PolySynth;
@@ -25,20 +44,83 @@ interface Kit {
   snare: import("tone").NoiseSynth;
   hat: import("tone").NoiseSynth;
   click: import("tone").MembraneSynth;
+  /** Built on demand (only when a lead line is played). Two voices per string family so double stops can sound together. */
+  lead: LeadRig | null;
   fx: { dispose(): unknown }[];
 }
+
+interface LeadVoice {
+  synth: import("tone").MonoSynth;
+  /** Seconds (Tone time) until which this voice is busy. */
+  busyUntil: number;
+}
+interface LeadRig {
+  tone: "clean" | "crunch";
+  pools: Record<"bass" | "g", LeadVoice[]>;
+}
+
+/** Mild amp-style drive for the crunch lead (pre-gain → soft clip → makeup). */
+const CRUNCH = { pre: 2.2, distortion: 0.32, post: 0.6 };
+
+function buildLeadRig(Tone: ToneMod, kit: Kit, tone: "clean" | "crunch"): LeadRig {
+  const keep = <N extends { dispose(): unknown }>(n: N) => (kit.fx.push(n), n);
+  // Same cab as the engine's lead voices; crunch puts the drive in front of it.
+  const chain = (lpHz: number, hpHz: number): import("tone").InputNode => {
+    const hp = keep(new Tone.Filter(hpHz, "highpass"));
+    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: lpHz, rolloff: -12 }));
+    hp.connect(lp);
+    lp.connect(kit.bus);
+    if (tone !== "crunch") return hp;
+    const pre = keep(new Tone.Gain(CRUNCH.pre));
+    const dist = keep(new Tone.Distortion({ distortion: CRUNCH.distortion, oversample: "2x" }));
+    const post = keep(new Tone.Gain(CRUNCH.post));
+    pre.connect(dist);
+    dist.connect(post);
+    post.connect(hp);
+    return pre;
+  };
+  const mk = (opts: typeof TONES.lead, lpHz: number, hpHz: number): LeadVoice[] => {
+    const dest = chain(lpHz, hpHz);
+    return [0, 1].map(() => {
+      const synth = keep(new Tone.MonoSynth(opts).connect(dest));
+      synth.volume.value = -4;
+      return { synth, busyUntil: 0 };
+    });
+  };
+  return {
+    tone,
+    pools: {
+      bass: mk(TONES.leadLow, 4200, 100),
+      g: mk(TONES.leadG, 4800, 95),
+    },
+  };
+}
+
+/** First idle voice in the family's pool (so notes at the same instant use different voices). */
+function claimLeadVoice(rig: LeadRig, kind: WarmToneKind, at: number, dur: number): LeadVoice {
+  const pool = rig.pools[kind === "bass" ? "bass" : "g"];
+  const free = pool.find((v) => v.busyUntil <= at - 1e-4);
+  const v = free ?? pool.reduce((a, b) => (a.busyUntil <= b.busyUntil ? a : b));
+  v.busyUntil = at + dur + 0.02;
+  return v;
+}
+
+/** Shared stop fade for Theory / By ear / Find / drills (all use this player). */
+const STOP_FADE_SEC = 0.12;
 
 function buildKit(Tone: ToneMod): Kit {
   const fx: { dispose(): unknown }[] = [];
   const keep = <N extends { dispose(): unknown }>(n: N) => (fx.push(n), n);
-  const dest = Tone.getDestination();
+  // Shared bus so stop can fade to silence instead of hard-cutting disposed nodes.
+  const bus = keep(new Tone.Gain(1).toDestination());
 
   const pluckNormal = new Tone.PolySynth({
     voice: Tone.MonoSynth,
     options: TONES.melodyG,
     maxPolyphony: 16,
-  }).connect(dest);
-  pluckNormal.volume.value = -8;
+  }).connect(bus);
+  // Guitar plucks quieter; bass guitar level stays put.
+  pluckNormal.volume.value = -14;
 
   const pluckBright = new Tone.PolySynth({
     voice: Tone.MonoSynth,
@@ -47,29 +129,29 @@ function buildKit(Tone: ToneMod): Kit {
       filterEnvelope: { ...TONES.melodyG.filterEnvelope, baseFrequency: 720, octaves: 2.8 },
     },
     maxPolyphony: 12,
-  }).connect(dest);
-  pluckBright.volume.value = -8;
+  }).connect(bus);
+  pluckBright.volume.value = -14;
 
   const pluckWarm = new Tone.PolySynth({
     voice: Tone.MonoSynth,
     options: TONES.melodyLow,
     maxPolyphony: 12,
-  }).connect(dest);
-  pluckWarm.volume.value = -7;
+  }).connect(bus);
+  pluckWarm.volume.value = -13;
 
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
     filter: { Q: 0.7, type: "lowpass" },
     filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.2, baseFrequency: 80, octaves: 1.5 },
     envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.2 },
-  }).connect(dest);
+  }).connect(bus);
   bass.volume.value = -10;
 
   const organ = new Tone.MonoSynth({
     oscillator: { type: "sine" },
     envelope: { attack: 0.02, decay: 0.05, sustain: 0.7, release: 0.15 },
     filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.5, baseFrequency: 800, octaves: 1 },
-  }).connect(dest);
+  }).connect(bus);
   organ.volume.value = -12;
 
   const kick = new Tone.MembraneSynth({
@@ -77,11 +159,11 @@ function buildKit(Tone: ToneMod): Kit {
     octaves: 4,
     oscillator: { type: "sine" },
     envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
-  }).connect(dest);
+  }).connect(bus);
   kick.volume.value = -4;
 
   const snareLp = keep(new Tone.Filter({ type: "lowpass", frequency: 2800 }));
-  snareLp.connect(dest);
+  snareLp.connect(bus);
   const snare = new Tone.NoiseSynth({
     noise: { type: "pink" },
     envelope: { attack: 0.001, decay: 0.14, sustain: 0 },
@@ -91,7 +173,7 @@ function buildKit(Tone: ToneMod): Kit {
   const hat = new Tone.NoiseSynth({
     noise: { type: "white" },
     envelope: { attack: 0.001, decay: 0.04, sustain: 0 },
-  }).connect(dest);
+  }).connect(bus);
   hat.volume.value = -22;
 
   const click = new Tone.MembraneSynth({
@@ -99,10 +181,10 @@ function buildKit(Tone: ToneMod): Kit {
     octaves: 2,
     oscillator: { type: "sine" },
     envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.02 },
-  }).connect(dest);
+  }).connect(bus);
   click.volume.value = -14;
 
-  return { pluckBright, pluckWarm, pluckNormal, bass, organ, kick, snare, hat, click, fx };
+  return { bus, pluckBright, pluckWarm, pluckNormal, bass, organ, kick, snare, hat, click, lead: null, fx };
 }
 
 function disposeKit(kit: Kit) {
@@ -114,14 +196,45 @@ function disposeKit(kit: Kit) {
   }
 }
 
+/**
+ * Fade the bus to silence first, then dispose.
+ * Do NOT releaseAll at full volume — that was the hard-cut click on By ear / Theory stop.
+ */
+function softDisposeKit(Tone: ToneMod, kit: Kit) {
+  try {
+    const now = Tone.now();
+    const g = kit.bus.gain;
+    const cur = typeof g.value === "number" ? g.value : 1;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(Math.max(cur, 0.0001), now);
+    g.linearRampToValueAtTime(0, now + STOP_FADE_SEC);
+  } catch { /* ignore */ }
+  const later = typeof setTimeout === "function" ? setTimeout : null;
+  // Dispose only after the fade so queued notes die into silence, not a clip.
+  later?.(() => {
+    try {
+      kit.pluckBright.releaseAll();
+      kit.pluckWarm.releaseAll();
+      kit.pluckNormal.releaseAll();
+      kit.bass.triggerRelease();
+      kit.organ.triggerRelease();
+    } catch { /* ignore */ }
+    try { disposeKit(kit); } catch { /* ignore */ }
+  }, Math.ceil(STOP_FADE_SEC * 1000) + 40);
+}
+
 function pluckFor(kit: Kit, timbre?: Timbre) {
   if (timbre === "bright") return kit.pluckBright;
   if (timbre === "warm") return kit.pluckWarm;
   return kit.pluckNormal;
 }
 
+/** Bump when kit levels / voices change so a live session rebuilds. */
+const KIT_GEN = 4;
+
 class TheoryPlayerImpl implements TheoryPlayer {
   private kit: Kit | null = null;
+  private kitGen = 0;
   private Tone: ToneMod | null = null;
   private _playing = false;
   private run = 0;
@@ -138,7 +251,11 @@ class TheoryPlayerImpl implements TheoryPlayer {
     const Tone = await loadTone();
     this.Tone = Tone;
     await Tone.start();
-    if (!this.kit) this.kit = buildKit(Tone);
+    if (!this.kit || this.kitGen !== KIT_GEN) {
+      if (this.kit) softDisposeKit(Tone, this.kit);
+      this.kit = buildKit(Tone);
+      this.kitGen = KIT_GEN;
+    }
   }
 
   private clearHighlights() {
@@ -158,14 +275,10 @@ class TheoryPlayerImpl implements TheoryPlayer {
     try {
       this.Tone?.getDraw().cancel(0);
     } catch { /* ignore */ }
-    if (this.kit) {
-      try {
-        this.kit.pluckBright.releaseAll();
-        this.kit.pluckWarm.releaseAll();
-        this.kit.pluckNormal.releaseAll();
-        this.kit.bass.triggerRelease();
-        this.kit.organ.triggerRelease();
-      } catch { /* ignore */ }
+    if (this.kit && this.Tone) {
+      // Fade then dispose so queued absolute-time notes die without a click.
+      softDisposeKit(this.Tone, this.kit);
+      this.kit = null;
     }
     this.clearHighlights();
     const done = this.resolvePlay;
@@ -173,7 +286,7 @@ class TheoryPlayerImpl implements TheoryPlayer {
     done?.();
   }
 
-  async play(ex: TheoryExample, onHighlight: (id: string, on: boolean) => void): Promise<void> {
+  async play(ex: Sound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void> {
     this.stop();
     try { getEngine().stop(); } catch { /* ignore */ }
     const myRun = ++this.run;
@@ -184,8 +297,23 @@ class TheoryPlayerImpl implements TheoryPlayer {
     const Tone = this.Tone!;
     const kit = this.kit!;
 
-    const t0 = Tone.now() + 0.1;
-    const beatSec = 60 / ex.bpm;
+    const lead = opts?.lead && opts.lead.length ? [...opts.lead].sort((a, b) => a.start_beat - b.start_beat) : null;
+    if (lead && !kit.lead) {
+      try { kit.lead = buildLeadRig(Tone, kit, opts?.leadTone ?? "clean"); } catch { kit.lead = null; }
+    }
+    // Per-string previous note (for slides / legato), in beat order. Same for every pass.
+    const leadPrev = new Map<PlayableNote, PlayableNote | undefined>();
+    if (lead) {
+      const last: Record<number, PlayableNote | undefined> = {};
+      for (const n of lead) {
+        leadPrev.set(n, last[n.string]);
+        last[n.string] = n;
+      }
+    }
+
+    /** Schedules one pass of the example (backing, lead, highlights) starting at `t0`; returns its length in seconds. */
+    const schedulePass = (cur: Sound, t0: number): number => {
+    const beatSec = 60 / cur.bpm;
 
     const scheduleHl = (id: string | undefined, start: number, beats: number) => {
       if (!id) return;
@@ -242,11 +370,50 @@ class TheoryPlayerImpl implements TheoryPlayer {
       }
     };
 
-    for (const e of ex.events) {
+    for (const e of cur.events) {
       fire(e, t0 + e.beat * beatSec);
     }
 
-    const totalMs = (ex.lengthBeats * beatSec + 0.35) * 1000;
+    const rig = kit.lead;
+    if (lead && rig) {
+      for (const n of lead) {
+        const at = t0 + n.start_beat * beatSec;
+        const dur = Math.max(0.08, n.duration_beats * beatSec * 0.96);
+        try {
+          const kind = warmToneKind(n.string, n.midi);
+          const voice = claimLeadVoice(rig, kind, at, dur);
+          const vel = kind === "bass" ? 0.9 : 0.8;
+          playLead(voice.synth, n.midi, at, dur, vel, articulation(n, leadPrev.get(n)));
+        } catch {
+          /* one bad note must not abort the lick */
+        }
+      }
+    }
+    return cur.lengthBeats * beatSec;
+    };
+
+    const startAt = Tone.now() + 0.1;
+    const firstLen = schedulePass(ex, startAt);
+
+    if (opts?.loop) {
+      // Schedule the next pass shortly before this one ends so a tempo change lands on the next loop.
+      let passEnd = startAt + firstLen;
+      const queueNext = () => {
+        const wait = Math.max(0, (passEnd - Tone.now() - 0.35) * 1000);
+        this.endTimer = setTimeout(() => {
+          if (this.run !== myRun) return;
+          const next = opts.nextExample?.() ?? ex;
+          passEnd += schedulePass(next, passEnd);
+          queueNext();
+        }, wait);
+      };
+      queueNext();
+      return new Promise<void>((resolve) => {
+        this.resolvePlay = resolve;
+      });
+    }
+
+    const totalMs = (firstLen + 0.35) * 1000;
     return new Promise<void>((resolve) => {
       this.resolvePlay = resolve;
       this.endTimer = setTimeout(() => {

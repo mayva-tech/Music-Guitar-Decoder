@@ -296,4 +296,6 @@ export interface UserPreferences {
   developerMode: boolean;
   /** When on, selecting a Read item speaks its English text (Microsoft Andrew). */
   autoReadAloud: boolean;
+  /** Lead Solo Workshop: "clean" = the app's lead voice, "crunch" adds mild drive. */
+  leadTone: "clean" | "crunch";
 }

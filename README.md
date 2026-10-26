@@ -13,9 +13,9 @@ music-decoder/
 │   ├── app/services/   audio decoding, transcription, rhythm, harmonizer, solo, arrangement, progress, SQLite
 │   └── tests/          pytest (unit + API integration with synthesized hums)
 ├── frontend/           Next.js 16 + TypeScript + Tailwind 4 + Tone.js + Zustand
-│   ├── src/app/        pages: home, onboarding, record, decoder, learn (+ theory map), library, progress, settings
-│   ├── src/components/ Fretboard (SVG), TabView, FingerGPS, ChordDiagram, PianoRoll, theory map …
-│   ├── src/lib/        music model, fretboard geometry, TAB layout, YIN pitch detection, playback, theory content
+│   ├── src/app/        pages: home, onboarding, record, decoder, learn (+ theory map, play by ear), library, progress, settings
+│   ├── src/components/ Fretboard (SVG), TabView, FingerGPS, ChordDiagram, PianoRoll, theory map, ear guide …
+│   ├── src/lib/        music model, fretboard geometry, TAB layout, YIN pitch detection, playback, theory + ear content
 │   ├── tests/          vitest unit tests
 │   └── e2e/            Playwright browser tests (desktop + mobile)
 └── scripts/            dev.sh (run both servers), test-all.sh
@@ -26,6 +26,33 @@ music-decoder/
 **Theory map** (`/learn/theory`) explains 19 music terms on a concept map with a 26-step guided tour,
 playable examples (guitar / bass / drums via Tone.js), A/B principles, a six-step songwriting recipe,
 and a glossary. Content lives in `frontend/src/lib/theory/content.ts` (do not rewrite the data to fit UI).
+
+## Play by ear
+
+**Play any song by ear** (`/learn/by-ear`) teaches a seven-step method for working out a song from listening:
+listen and loop, find home, major or minor, follow the bass, chords (with a key chart), melody, and rhythm
+(with tap tempo). It includes two worked songs (Twinkle, Twinkle; Amazing Grace), four scored ear drills,
+and a cheat sheet of common progressions. Content is in `frontend/src/lib/theory/ear.ts` and reuses the
+Theory map player and visuals.
+
+## Lead solo workshop
+
+**Lead solos** (`/learn/solo`) is an improvisation guide for adding a lead solo to a song: a six-step plan,
+eight technique cards (slide, hammer-on, pull-off, bend, bend and release, vibrato, double stops, space),
+a scale chooser, chord-tone targeting (wandering vs targeting), a library of eight licks, a nine-bar full
+solo, and four looping jam tracks with tempo. Every lick plays through the app's lead voice
+(`playLead` + `articulation`) over drums, bass and chords, and lights its neck markers and TAB together.
+
+- Content and neck helpers: `frontend/src/lib/music/soloGuide.ts` (tests in `frontend/tests/soloGuide.test.ts`).
+- The fretboard map popup (`ScaleFretmapFloat` / `ScaleFretmapNeck`) gained optional pentatonic **boxes**,
+  **chord-tone rings** (dashed where the tone is outside the scale) and a **lick layer** (numbered markers,
+  bend / slide / hammer / pull / vibrato glyphs). Without the new props the Progress pages render as before;
+  the workshop remembers its own popup position (`md-solo-fretmap-float`).
+- Audio: `getTheoryPlayer().play(example, onHighlight, { lead, leadTone, loop })` adds a lead line (a second
+  voice handles double stops), an optional mild-drive **Crunch** tone, and looping until `stop()`.
+  The **Lead tone** (Clean / Crunch) is saved in preferences as `leadTone`. Only one thing plays at a time,
+  and leaving the page stops everything.
+- Tests: `tests/soloNeck.test.ts` (neck layers), `tests/soloPlayer.test.ts` (lead line, loop), `e2e/solo.spec.ts`.
 
 ## What's new in v4: modern-style riffs and finger animation
 

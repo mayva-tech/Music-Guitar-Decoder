@@ -137,6 +137,14 @@ export default function PentatonicBoxPage() {
         </button>
       </section>
 
+      <section className="mt-4 surface p-5">
+        <h2 className="text-lg font-bold">Next: all five boxes</h2>
+        <p className="mt-1 text-sm text-muted">
+          Box 1 is one of five. The CAGED map shows all five boxes across the neck, the chord shape inside each one, and drills to memorise them.
+        </p>
+        <Link href="/learn/caged" className="btn btn-ghost btn-sm mt-3" data-testid="caged-map-link">Open the CAGED &amp; pentatonic map</Link>
+      </section>
+
       <ReadAloudFloat
         open={floatOpen}
         onOpenChange={setFloatOpen}

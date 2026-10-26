@@ -146,7 +146,7 @@ export default function DecoderPage() {
             {lowCount > 0 && <span className="text-next"> · {lowCount} to check</span>}
           </p>
         </div>
-        <PianoRoll melody={melody} selected={selected} playing={playingNote} onSelect={setSelected} />
+        <PianoRoll melody={melody} selected={selected} playing={playingNote} onSelect={setSelected} onChange={update} />
 
         <div className="mt-4 flex flex-wrap gap-1.5" role="list" aria-label="Note names">
           {melody.notes.map((n, i) => (

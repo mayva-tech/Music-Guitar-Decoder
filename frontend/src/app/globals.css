@@ -212,6 +212,24 @@ input[type="range"] {
     grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
     align-items: start;
   }
+  .ear-method-row,
+  .ear-worked {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: start;
+  }
+  .ear-cheat {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 819px) {
+  .ear-worked-stage {
+    position: static !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theory-block.is-on {
+    filter: none;
+  }
 }
 .theory-dot.is-on circle,
 .theory-cell.is-on {
@@ -239,4 +257,43 @@ input[type="range"] {
   .theory-cell.is-on {
     transform: none;
   }
+}
+
+/* Lead Solo Workshop: lit lick notes on the neck + TAB tokens (ids from components/solo, toggled via data-hl) */
+.solo-hl {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.solo-hl .solo-ring { opacity: 0; }
+.solo-hl.is-on .solo-ring { opacity: 1; }
+.solo-hl.is-on { transform: scale(1.18); }
+.tab-tok {
+  color: var(--color-ink);
+  font-weight: 700;
+  border-radius: 3px;
+}
+.tab-tok.is-on {
+  background: var(--color-maple);
+  color: var(--color-tolex);
+}
+@media (prefers-reduced-motion: reduce) {
+  .solo-hl.is-on { transform: none; }
+}
+
+/* Home page beginner corner: lit strings, strokes, fingers and pattern slots while an exercise plays. */
+.bc-str { transition: stroke 80ms, stroke-width 80ms; }
+.bc-str.is-on { stroke: var(--color-next); stroke-width: 3.6; }
+.bc-arrow.is-on, .bc-hl.is-on { stroke: var(--color-next); color: var(--color-next); }
+.bc-fin.is-on circle, .bc-fin.is-on rect { fill: var(--color-next); }
+.bc-slot { transition: background-color 80ms, color 80ms; }
+.bc-slot.is-on { background: var(--color-next); color: var(--color-tolex); }
+.bc-slot.is-on span { color: var(--color-tolex); }
+
+/* CAGED map: the note that's sounding pops and gets an amber ring. */
+.cg-pop { transition: transform 90ms; transform-box: fill-box; transform-origin: center; }
+.cg-note.is-on .cg-pop { transform: scale(1.25); }
+.cg-note.is-on .cg-dot { stroke: var(--color-next); stroke-width: 4; }
+.cg-note.is-on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .cg-note.is-on .cg-pop { transform: none; }
 }

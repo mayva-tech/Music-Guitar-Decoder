@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { PageTitle } from "@/components/AppShell";
 import { Glossary } from "@/components/theory/Glossary";
 import { Principles } from "@/components/theory/Principles";
@@ -24,16 +25,32 @@ function termSpeakText(id: string): string {
     .join(" ");
 }
 
-export default function TheoryMapPage() {
+function TheoryMapPageInner() {
+  const searchParams = useSearchParams();
+  const termFromUrl = searchParams.get("term");
   const autoRead = useApp((s) => s.prefs.autoReadAloud);
   const setPrefs = useApp((s) => s.setPrefs);
-  const [selectedId, setSelectedId] = useState<string | null>("chord");
+  const [selectedId, setSelectedId] = useState<string | null>(
+    termFromUrl && ALL_TERMS[termFromUrl] ? termFromUrl : "chord",
+  );
   const [tourIndex, setTourIndex] = useState(0);
   const [tourPlaying, setTourPlaying] = useState(false);
   const [playingLabel, setPlayingLabel] = useState<string | null>(null);
   const [activeVisual, setActiveVisual] = useState<TheoryVisual | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (termFromUrl && ALL_TERMS[termFromUrl]) {
+      setSelectedId(termFromUrl);
+      setActiveVisual(
+        ALL_TERMS[termFromUrl]?.figure ?? ALL_TERMS[termFromUrl]?.examples[0]?.visual ?? null,
+      );
+      queueMicrotask(() => {
+        document.getElementById("theory-map-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  }, [termFromUrl]);
 
   useEffect(() => () => {
     cancelEnglishSpeech();
@@ -110,6 +127,10 @@ export default function TheoryMapPage() {
           >
             Auto read {autoRead ? "On" : "Off"}
           </button>
+          <Link href="/learn/by-ear" className="btn btn-primary btn-sm" data-testid="theory-next-ear">
+            Next: play by ear
+          </Link>
+          <Link href="/learn/solo" className="btn btn-quiet btn-sm" data-testid="theory-solo-link">Lead solos</Link>
           <Link href="/learn" className="btn btn-quiet btn-sm">Back to Guitar learning</Link>
         </div>
       </PageTitle>
@@ -147,5 +168,13 @@ export default function TheoryMapPage() {
 
       <Glossary onSelect={selectTerm} />
     </div>
+  );
+}
+
+export default function TheoryMapPage() {
+  return (
+    <Suspense fallback={<div className="theory-page p-4 text-sm text-muted">Loading Theory map…</div>}>
+      <TheoryMapPageInner />
+    </Suspense>
   );
 }

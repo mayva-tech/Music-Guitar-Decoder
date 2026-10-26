@@ -480,6 +480,9 @@ export default function LearnPage() {
           <Link href="/decoder" className="btn btn-ghost">Open the decoder</Link>
           <Link href="/library" className="btn btn-ghost">Open a saved song</Link>
           <Link href="/learn/theory" className="btn btn-ghost">Open the Theory map</Link>
+          <Link href="/learn/caged" className="btn btn-ghost">CAGED &amp; pentatonic map</Link>
+          <Link href="/learn/by-ear" className="btn btn-ghost">Play any song by ear</Link>
+          <Link href="/learn/solo" className="btn btn-ghost">Lead solo workshop</Link>
         </div>
       </div>
     );
@@ -509,6 +512,18 @@ export default function LearnPage() {
           <p className="mb-2">
             <Link href="/learn/theory" className="chip text-xs hover:bg-panel-2" data-testid="theory-map-link">
               Theory map — hear every term with visuals
+            </Link>
+            <Link href="/learn/by-ear" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="ear-guide-link">
+              Play any song by ear
+            </Link>
+            <Link href="/learn/find" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="find-link">
+              Find a chord or topic
+            </Link>
+            <Link href="/learn/solo" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="solo-link">
+              Lead solo workshop
+            </Link>
+            <Link href="/learn/caged" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="caged-map-link">
+              CAGED &amp; pentatonic map
             </Link>
           </p>
           <h1 className="display text-[1.55rem] md:text-[1.9rem] leading-tight">{arr.title}</h1>

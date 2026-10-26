@@ -46,6 +46,18 @@ vi.mock("tone", () => {
       constructor() { Object.assign(this, synth()); }
       connect = vi.fn();
     },
+    Gain: class {
+      gain = {
+        value: 1,
+        cancelScheduledValues: vi.fn(),
+        setValueAtTime: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+      };
+      connect = vi.fn().mockReturnThis();
+      toDestination = vi.fn().mockReturnThis();
+      dispose = vi.fn();
+      constructor(_v?: number) { /* */ }
+    },
   };
 });
 
@@ -74,15 +86,12 @@ describe("theory player", () => {
     const seen: { id: string; on: boolean }[] = [];
     const playPromise = player.play(
       {
-        label: "test",
-        sub: "",
         bpm: 120,
         lengthBeats: 1,
         events: [
           { kind: "highlight", beat: 0, beats: 0.5, velocity: 1, highlight: "d0" },
           { kind: "pluck", beat: 0, beats: 0.5, velocity: 0.8, midi: 64, highlight: "d1" },
         ],
-        visual: { type: "overview" },
       },
       (id, on) => seen.push({ id, on }),
     );
@@ -104,12 +113,9 @@ describe("theory player", () => {
     const offs: string[] = [];
     const p = player.play(
       {
-        label: "long",
-        sub: "",
         bpm: 60,
         lengthBeats: 8,
         events: [{ kind: "pluck", beat: 0, beats: 1, velocity: 1, midi: 60, highlight: "x" }],
-        visual: { type: "overview" },
       },
       (id, on) => {
         if (!on) offs.push(id);

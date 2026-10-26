@@ -111,7 +111,7 @@ describe("hidden theory insights", () => {
   });
 });
 
-import { deleteNote, hasOverlaps, insertAfter, setDuration, transposeNote, canRequantize } from "@/lib/music/edit";
+import { deleteNote, hasOverlaps, insertAfter, moveNote, setDuration, transposeNote, canRequantize } from "@/lib/music/edit";
 
 describe("correcting detected notes", () => {
   const m = fixture.original_melody as unknown as Arrangement["original_melody"];
@@ -130,5 +130,17 @@ describe("correcting detected notes", () => {
     expect(hasOverlaps(ins)).toBe(false);
     expect(deleteNote(m, m.notes[0].id).notes).toHaveLength(15);
     expect(canRequantize(ins)).toBe(false);
+  });
+  it("moves pitch and time without overlaps, snapped to half beats", () => {
+    const n0 = m.notes[0];
+    const up = moveNote(m, n0.id, { midi: n0.midi + 2.4 });
+    expect(up.notes[0].midi).toBe(n0.midi + 2);
+    expect(up.notes[0].source).toBe("edited");
+    const stretched = moveNote(m, n0.id, { duration_beats: 3 });
+    expect(hasOverlaps(stretched)).toBe(false);
+    expect(stretched.notes[0].duration_beats).toBeLessThanOrEqual(m.notes[1].start_beat - n0.start_beat);
+    const late = moveNote(m, n0.id, { start_beat: n0.start_beat + 0.4 });
+    expect(late.notes[0].start_beat).toBe(n0.start_beat + 0.5);
+    expect(hasOverlaps(late)).toBe(false);
   });
 });
