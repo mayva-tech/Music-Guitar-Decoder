@@ -45,7 +45,8 @@ export interface TabLayout {
 }
 
 export function gridResolution(notes: { start_beat: number }[]): number {
-  for (const r of [1, 2, 4]) {
+  // Straight grids first (unchanged behaviour), then triplet / swing grids.
+  for (const r of [1, 2, 4, 3, 6, 12]) {
     if (notes.every((n) => Math.abs(n.start_beat * r - Math.round(n.start_beat * r)) < 1e-6)) return r;
   }
   return 4;

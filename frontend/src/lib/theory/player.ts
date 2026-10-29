@@ -119,7 +119,7 @@ function buildKit(Tone: ToneMod): Kit {
     options: TONES.melodyG,
     maxPolyphony: 16,
   }).connect(bus);
-  // Guitar plucks quieter; bass guitar level stays put.
+  // Guitar plucks quieter than bass so the root line reads clearly.
   pluckNormal.volume.value = -14;
 
   const pluckBright = new Tone.PolySynth({
@@ -145,7 +145,7 @@ function buildKit(Tone: ToneMod): Kit {
     filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.2, baseFrequency: 80, octaves: 1.5 },
     envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.2 },
   }).connect(bus);
-  bass.volume.value = -10;
+  bass.volume.value = -4;
 
   const organ = new Tone.MonoSynth({
     oscillator: { type: "sine" },
@@ -230,7 +230,7 @@ function pluckFor(kit: Kit, timbre?: Timbre) {
 }
 
 /** Bump when kit levels / voices change so a live session rebuilds. */
-const KIT_GEN = 4;
+const KIT_GEN = 5;
 
 class TheoryPlayerImpl implements TheoryPlayer {
   private kit: Kit | null = null;

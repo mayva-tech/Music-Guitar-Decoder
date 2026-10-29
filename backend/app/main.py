@@ -14,6 +14,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .env_load import load_env
 from .music.theory import midi_to_name
 from .schemas import (Arrangement, DetectedMelody, Harmonization, HarmonizeResponse, KeyCandidate, PracticeResult,
                       PracticeSession, SkillLevel, Style, TechniquesMode, UserPreferences)
@@ -22,8 +23,11 @@ from .services.audio_io import AudioError
 from .services.harmonizer import harmonize
 from .services.progress import compute_progress, recommendations, score_result
 from .services.riffs import build_riff_arrangement, list_riffs
+from .services import hooktheory, song_lookup
 from .services.storage import Storage
 from .services.transcription import key_candidates_for, requantize, transcribe_audio
+
+load_env()
 
 app = FastAPI(title="Music Decoder API", version="0.2.0",
               description="Hum It. Rock It. Play It. — transcription, harmonisation and solo generation.")
@@ -214,6 +218,26 @@ def validate(arr: Arrangement):
 
 
 # ---------------------------------------------------------------- riff library
+@app.get("/api/song-search")
+def song_search(q: str = Query(..., min_length=2, max_length=120, description="Song title, optionally with the artist")):
+    """Key, tempo and time signature for songs matching a title (GetSongBPM). Chords aren't available online."""
+    try:
+        out = song_lookup.search(q)
+        out["hooktheory"] = hooktheory.configured()
+        return out
+    except song_lookup.LookupError as e:
+        raise HTTPException(502, str(e)) from e
+
+
+@app.get("/api/hooktheory/examples")
+def hooktheory_examples(mode: str = Query("major", pattern="^(major|minor)$")):
+    """TheoryTab songs that use common progressions in major or minor (Hooktheory Trends API)."""
+    try:
+        return hooktheory.examples_for_mode(mode)
+    except hooktheory.HooktheoryError as e:
+        raise HTTPException(502, str(e)) from e
+
+
 @app.get("/api/riffs")
 def riffs():
     return list_riffs()

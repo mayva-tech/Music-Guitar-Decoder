@@ -20,14 +20,22 @@ import { handBases } from "@/lib/music/handLayout";
 import { fingerChange } from "@/lib/music/fingerMoves";
 import { TheoryPanel } from "@/components/TheoryPanel";
 import { LessonContent } from "@/components/LessonContent";
+import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { articulation } from "@/lib/audio/timeline";
 import { ApiError } from "@/lib/api";
 import { phraseInsight, type Insight } from "@/lib/music/insights";
 import { LESSONS } from "@/lib/music/lessons";
-import { degreeWords, isChordTone, midiToName } from "@/lib/music/theory";
+import { SCALE_ROOTS, type ScaleMode, type ScaleRoot } from "@/lib/music/scaleFretmap";
+import { degreeWords, isChordTone, midiToName, pitchClassName } from "@/lib/music/theory";
 import { useApp, useHydrated } from "@/lib/store";
 import { cancelEnglishSpeech, speakEnglish } from "@/lib/tts/speakEnglish";
 import type { Part, PlayableNote, PracticeEventResult, PracticeMode, Recommendation, Style, TechniquesMode } from "@/lib/types";
+
+/** Map a song key onto the fretboard map's natural roots (C–B). */
+function fretmapRootFromTonic(tonic: number): ScaleRoot {
+  const natural = pitchClassName(60 + ((tonic % 12) + 12) % 12).replace(/#/g, "");
+  return (SCALE_ROOTS as readonly string[]).includes(natural) ? (natural as ScaleRoot) : "C";
+}
 
 type Feedback = { tone: "ok" | "bad" | "info"; text: string } | null;
 const PART_LABEL: Record<Part, string> = { solo: "Easy solo", lead: "Lead solo", melody: "Original melody" };
@@ -62,6 +70,7 @@ export default function LearnPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [noiseMsg, setNoiseMsg] = useState<string | null>(null);
   const [explainOpen, setExplainOpen] = useState(true);
+  const [fretmapOpen, setFretmapOpen] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
 
@@ -483,10 +492,18 @@ export default function LearnPage() {
           <Link href="/learn/caged" className="btn btn-ghost">CAGED &amp; pentatonic map</Link>
           <Link href="/learn/by-ear" className="btn btn-ghost">Play any song by ear</Link>
           <Link href="/learn/solo" className="btn btn-ghost">Lead solo workshop</Link>
+          <Link href="/learn/greats" className="btn btn-ghost">Guitar greats</Link>
+          <button type="button" className="btn btn-ghost" data-testid="learn-fretmap" onClick={() => setFretmapOpen(true)}>
+            Fretboard map
+          </button>
         </div>
+        <ScaleFretmapFloat open={fretmapOpen} onOpenChange={setFretmapOpen} />
       </div>
     );
   }
+
+  const fretmapRoot = fretmapRootFromTonic(arr.key.tonic);
+  const fretmapMode: ScaleMode = arr.key.mode === "minor" ? "minor" : "major";
 
   const bpb = arr.beats_per_bar;
   const { bar, beat } = barAndBeat(cur?.start_beat ?? 0, bpb);
@@ -525,6 +542,17 @@ export default function LearnPage() {
             <Link href="/learn/caged" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="caged-map-link">
               CAGED &amp; pentatonic map
             </Link>
+            <Link href="/learn/greats" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="greats-link">
+              Guitar greats
+            </Link>
+            <button
+              type="button"
+              className="ml-2 chip text-xs hover:bg-panel-2"
+              data-testid="learn-fretmap"
+              onClick={() => setFretmapOpen(true)}
+            >
+              Fretboard map
+            </button>
           </p>
           <h1 className="display text-[1.55rem] md:text-[1.9rem] leading-tight">{arr.title}</h1>
           <p className="mt-0.5 text-sm text-muted">
@@ -842,7 +870,23 @@ export default function LearnPage() {
             </div>
           ))}
         </div>
+        <div className="mt-5 border-t border-line pt-4">
+          <h3 className="font-semibold">See the scale on the neck</h3>
+          <p className="mt-1 text-sm text-muted">
+            Open the fretboard map in {arr.key.name} to find every scale note and related chord shapes.
+          </p>
+          <button type="button" className="btn btn-primary btn-sm mt-3" data-testid="learn-fretmap-chords" onClick={() => setFretmapOpen(true)}>
+            Open fretboard map
+          </button>
+        </div>
       </section>
+
+      <ScaleFretmapFloat
+        open={fretmapOpen}
+        onOpenChange={setFretmapOpen}
+        initialRoot={fretmapRoot}
+        initialMode={fretmapMode}
+      />
     </div>
   );
 }

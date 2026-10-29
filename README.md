@@ -21,6 +21,33 @@ music-decoder/
 └── scripts/            dev.sh (run both servers), test-all.sh
 ```
 
+## Song search
+
+**Song search** (`/songs`, plus a search box in the sidebar and a search icon on phones) takes a song title and
+returns its key, scale and chords:
+
+| Source | What you get |
+|---|---|
+| Built-in songbook (13 public-domain and traditional songs, works offline) | The full chord chart by section, playable, with chord shapes, key, scale and a capo tip |
+| [GetSongBPM](https://getsongbpm.com/api) title search | Key, tempo and time signature for almost any song, then the scale and key chords to try |
+| [Hooktheory Trends](https://www.hooktheory.com/api/trends/docs) | TheoryTab example songs that use common progressions in that key (not title search — Hooktheory has no title API) |
+
+No free service provides the exact chords of copyrighted songs. Online GetSongBPM results show the key's chords as
+"chords to try"; Hooktheory links open TheoryTab charts on their site. Typos are forgiven (`twinkel twinkel` finds Twinkle, Twinkle).
+
+Put keys in `backend/.env` (loaded automatically), then restart the backend:
+
+```bash
+# backend/.env
+GETSONGBPM_API_KEY=your-getsongbpm-key
+HOOKTHEORY_USERNAME=your-hooktheory-username
+HOOKTHEORY_PASSWORD=your-hooktheory-password
+```
+
+Get a free GetSongBPM key at https://getsongbpm.com/api (their terms require a visible backlink — `/songs` already shows one).
+Hooktheory uses your hooktheory.com login; the Trends API returns songs by chord path, not by title.
+Without keys the songbook still works. Lookups are cached in memory. Code: `songSearch.ts`, `song_lookup.py`, `hooktheory.py`.
+
 ## Theory map
 
 **Theory map** (`/learn/theory`) explains 19 music terms on a concept map with a 26-step guided tour,

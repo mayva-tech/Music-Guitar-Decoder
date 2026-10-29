@@ -93,12 +93,14 @@ export const SOLO_VOICINGS: Record<string, number[]> = {
   A7: [45, 52, 55, 61, 64], // x02020
   D7: [50, 57, 60, 66], // xx0212
   E7: [40, 47, 50, 56, 59, 64], // 020100
+  Dm7: [50, 57, 60, 65], // xx0211
 };
-export const SOLO_BASS: Record<string, number> = { ...BASS_ROOT, D: 38, A7: 45, D7: 38, E7: 40 };
+export const SOLO_BASS: Record<string, number> = { ...BASS_ROOT, D: 38, A7: 45, D7: 38, E7: 40, Dm7: 38, Cmaj7: 36 };
 /** Pitch classes of each chord (root first). */
 export const CHORD_TONES: Record<string, number[]> = {
   Am: [9, 0, 4], G: [7, 11, 2], F: [5, 9, 0], C: [0, 4, 7], Em: [4, 7, 11], D: [2, 6, 9],
   A7: [9, 1, 4, 7], D7: [2, 6, 9, 0], E7: [4, 8, 11, 2],
+  G7: [7, 11, 2, 5], Cmaj7: [0, 4, 7, 11], Dm7: [2, 5, 9, 0], Dm: [2, 5, 9],
 };
 
 /* ------------------------------------------------------------ boxes */

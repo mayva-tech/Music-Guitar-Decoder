@@ -289,6 +289,15 @@ input[type="range"] {
 .bc-slot.is-on { background: var(--color-next); color: var(--color-tolex); }
 .bc-slot.is-on span { color: var(--color-tolex); }
 
+/* By-ear fretboard play-along: the note to pick pulses. */
+.ef-pulse { transform-box: fill-box; transform-origin: center; animation: ef-pulse 1.2s ease-out infinite; }
+@keyframes ef-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ef-pulse { animation: none; opacity: 0; } }
+
+/* Song search: the chord that's sounding lights up. */
+.song-chip.is-on, .song-prog-chord.is-on { background: var(--color-next); color: var(--color-tolex); border-color: var(--color-next); }
+.song-chip.is-on span { color: var(--color-tolex); }
+
 /* CAGED map: the note that's sounding pops and gets an amber ring. */
 .cg-pop { transition: transform 90ms; transform-box: fill-box; transform-origin: center; }
 .cg-note.is-on .cg-pop { transform: scale(1.25); }

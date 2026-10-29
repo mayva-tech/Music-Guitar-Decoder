@@ -23,6 +23,23 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
 $env:MUSIC_DECODER_DB = Join-Path $Root "backend\data\music_decoder.sqlite3"
 $env:MUSIC_DECODER_API = "http://127.0.0.1:8000"
 
+# Load backend/.env into this process (and child servers) if present.
+$EnvFile = Join-Path $Root "backend\.env"
+if (Test-Path $EnvFile) {
+    Get-Content $EnvFile | ForEach-Object {
+        $line = $_.Trim()
+        if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) { return }
+        $i = $line.IndexOf("=")
+        $k = $line.Substring(0, $i).Trim()
+        $v = $line.Substring($i + 1).Trim()
+        if (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'"))) {
+            $v = $v.Substring(1, $v.Length - 2)
+        }
+        if ($k -and -not [string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($k))) { return }
+        Set-Item -Path "Env:$k" -Value $v
+    }
+}
+
 Write-Host "Music Decoder: open http://localhost:3000  (API docs: http://localhost:8000/docs)" -ForegroundColor Green
 Write-Host "Press Ctrl+C in each window / close the windows to stop." -ForegroundColor DarkGray
 

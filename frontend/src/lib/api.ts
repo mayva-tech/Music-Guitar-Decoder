@@ -3,6 +3,7 @@ import type {
   Arrangement, ArrangementSummary, DetectedMelody, Harmonization, HarmonizeResponse, KeyCandidate, PracticeResult,
   PracticeSessionRecord, ProgressSummary, Recommendation, RiffInfo, SkillLevel, Style, TechniquesMode,
 } from "./types";
+import type { HooktheoryExamples, OnlineSearch } from "./music/songSearch";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -70,6 +71,11 @@ export const api = {
   generateSolo: (melody: DetectedMelody, harmonization: Harmonization, skill_level: SkillLevel, style: Style, title?: string, techniques: TechniquesMode = "auto") =>
     call<Arrangement>("/api/generate-solo", json({ melody, harmonization, skill_level, style, title, techniques })),
   arrangement: (id: string) => call<Arrangement>(`/api/arrangement/${id}`),
+  /** Key, tempo and time signature for songs matching a title (GetSongBPM; chords aren't available). */
+  songSearch: (q: string, init?: RequestInit) => call<OnlineSearch>(`/api/song-search?q=${encodeURIComponent(q)}`, init),
+  /** TheoryTab songs that use common progressions in major/minor (Hooktheory Trends). */
+  hooktheoryExamples: (mode: "major" | "minor", init?: RequestInit) =>
+    call<HooktheoryExamples>(`/api/hooktheory/examples?mode=${mode}`, init),
   riffs: () => call<RiffInfo[]>("/api/riffs"),
   riffArrangement: (id: string, skill_level: SkillLevel, techniques: TechniquesMode = "auto", save = true) =>
     call<Arrangement>(`/api/riffs/${encodeURIComponent(id)}/arrangement`, json({ skill_level, techniques, save })),

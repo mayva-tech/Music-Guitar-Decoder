@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { PageTitle } from "@/components/AppShell";
 import { CheatSheet } from "@/components/ear/CheatSheet";
 import { Drill } from "@/components/ear/Drill";
+import { FretTrainer } from "@/components/ear/FretTrainer";
 import { MethodStep } from "@/components/ear/MethodStep";
 import { StepStrip } from "@/components/ear/StepStrip";
 import { WorkedSong } from "@/components/ear/WorkedSong";
@@ -16,6 +17,13 @@ import { getTheoryPlayer } from "@/lib/theory/player";
 export default function PlayByEarPage() {
   const [playingLabel, setPlayingLabel] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
+  const trainerRef = useRef<HTMLElement | null>(null);
+  const [trainerSong, setTrainerSong] = useState("ode");
+  const openTrainer = (id: string) => {
+    stopSound();
+    setTrainerSong(id);
+    trainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => () => {
     getTheoryPlayer().stop();
@@ -63,6 +71,18 @@ export default function PlayByEarPage() {
 
       <StepStrip />
 
+      <section ref={trainerRef} className="scroll-mt-4 space-y-4" aria-labelledby="ear-play-heading" data-testid="ear-play-section">
+        <div>
+          <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: "var(--lane-song)" }}>Try it on your guitar</p>
+          <h2 id="ear-play-heading" className="display text-2xl">Play it on the fretboard</h2>
+          <p className="mt-1 text-sm text-muted">
+            Pick the glowing note, copy the chord shape, then hide the notes and find them by ear. Tap the neck, or turn on the
+            microphone and play your real guitar: it moves on when you hit the right note.
+          </p>
+        </div>
+        <FretTrainer songId={trainerSong} onSongChange={setTrainerSong} />
+      </section>
+
       <section className="space-y-4" aria-labelledby="ear-method-heading">
         <div>
           <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: "var(--lane-song)" }}>The method</p>
@@ -95,6 +115,7 @@ export default function PlayByEarPage() {
               song={song}
               playingLabel={playingLabel}
               onPlayExample={(key, ex) => void playExample(key, ex)}
+              onPlayAlong={() => openTrainer(song.id)}
             />
           ))}
         </div>

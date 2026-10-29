@@ -233,7 +233,7 @@ export function playableEvents(events: Schedule["events"]): Schedule["events"] {
 }
 
 /** Bump when the output graph changes so a stale silent bus is rebuilt. */
-const GRAPH_GEN = 15;
+const GRAPH_GEN = 16;
 const ENGINE_STOP_FADE_SEC = 0.12;
 
 export class PlaybackEngine {
@@ -278,8 +278,8 @@ export class PlaybackEngine {
         c.volume.value = db;
         return c;
       };
-      // Guitar buses quieter; bass guitar channel unchanged.
-      this.channels = { melody: mk(-13), solo: mk(-13), lead: mk(-14), backing: mk(-17), bass: mk(-11), drums: mk(-10), click: mk(-10, false) };
+      // Guitar buses quieter; bass sits up so the root line cuts through.
+      this.channels = { melody: mk(-13), solo: mk(-13), lead: mk(-14), backing: mk(-17), bass: mk(-5), drums: mk(-10), click: mk(-10, false) };
       this.graphGen = GRAPH_GEN;
     }
     if (!this.voices) this.voices = buildVoices(Tone, this.channels);
@@ -395,7 +395,7 @@ export class PlaybackEngine {
             });
             break;
           case "bass":
-            safe(() => v.bass.triggerAttackRelease(midiToFreq(e.midis[0]), dur, time, Math.min(0.8, e.velocity)));
+            safe(() => v.bass.triggerAttackRelease(midiToFreq(e.midis[0]), dur, time, Math.min(1, e.velocity)));
             break;
           case "click":
             safe(() => v.click.triggerAttackRelease(e.velocity > 0.8 ? 1200 : 800, 0.06, time, Math.min(0.7, e.velocity)));

@@ -10,10 +10,13 @@ export function WorkedSong({
   song,
   playingLabel,
   onPlayExample,
+  onPlayAlong,
 }: {
   song: WorkedSongData;
   playingLabel: string | null;
   onPlayExample: (key: string, ex: TheoryExample) => void;
+  /** Open this song in the fretboard play-along. */
+  onPlayAlong?: () => void;
 }) {
   const first = song.stages[0]?.examples[0];
   const [visual, setVisual] = useState<TheoryVisual | null>(first?.visual ?? null);
@@ -28,6 +31,11 @@ export function WorkedSong({
         <div>
           <p className="font-mono text-xs text-muted">{song.meta}</p>
           <h3 className="display mt-1 text-2xl">{song.title}</h3>
+          {onPlayAlong && (
+            <button type="button" className="btn btn-ghost btn-sm mt-2" onClick={onPlayAlong} data-testid={`ear-play-along-${song.id}`}>
+              Play it on the fretboard
+            </button>
+          )}
         </div>
         {song.stages.map((stage, si) => (
           <div key={stage.title} className="space-y-2">

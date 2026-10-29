@@ -27,6 +27,7 @@ export function SoloHero({
           </button>
           <Link href="/learn/theory" className="btn btn-quiet btn-sm">Theory map</Link>
           <Link href="/learn/by-ear" className="btn btn-quiet btn-sm">Play by ear</Link>
+          <Link href="/learn/greats" className="btn btn-quiet btn-sm">Guitar greats</Link>
         </div>
       </div>
       <div>
