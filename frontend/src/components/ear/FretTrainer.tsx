@@ -8,6 +8,7 @@ import { shapeToStrumSound } from "@/lib/audio/strumChord";
 import { useMicPitch, type LiveFrame } from "@/lib/audio/useMicPitch";
 import { useApp } from "@/lib/store";
 import { noteName } from "@/lib/theory/content";
+import { chordToneNames } from "@/lib/music/chordShapes";
 import {
   FINGER_WORD, NoteFollower, PLAY_SONGS, STRING_WORD, inChord, midiOf, moveHint, moveSound, playAlongExample, shapeSteps,
 } from "@/lib/theory/earPlayAlong";
@@ -255,6 +256,9 @@ export function FretTrainer({ songId, onSongChange }: { songId: string; onSongCh
           <div>
             <p className="text-sm text-muted">Chord {cIdx + 1} of {song.chords.length} · bar {chord.bar + 1} · {chord.beats} beats</p>
             <p className="mt-0.5"><span className="display text-3xl" data-testid="ef-chord-name">{chord.symbol}</span> <span className="text-muted">({chord.numeral})</span></p>
+            <p className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-muted" data-testid="ef-chord-notes">
+              {chordToneNames(chord.symbol, chord.shape).join(" · ")}
+            </p>
             <ul className="mt-2 space-y-0.5 text-sm" data-testid="ef-chord-steps">
               {shapeSteps(chord.shape).map((s) => <li key={s}>• {s}</li>)}
             </ul>

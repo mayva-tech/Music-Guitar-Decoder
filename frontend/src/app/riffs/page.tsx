@@ -32,6 +32,15 @@ export default function RiffsPage() {
     return () => getEngine().stop();
   }, []);
 
+  // Deep links from other pages: /riffs?genre=blues, /riffs?source=modern
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const g = q.get("genre");
+    if (g && g in GENRE_LABEL) setGenre(g as Genre);
+    const src = q.get("source");
+    if (src === "modern" || src === "original" || src === "public_domain") setSource(src);
+  }, []);
+
   const shown = useMemo(
     () => (riffs ?? []).filter((r) => (genre === "all" || r.genre === genre) && (level === "all" || r.difficulty === level)
       && (source === "all" || (source === "modern" ? !!r.vibe : r.source === source && (source !== "original" || !r.vibe)))),

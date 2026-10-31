@@ -44,6 +44,12 @@ interface Kit {
   snare: import("tone").NoiseSynth;
   hat: import("tone").NoiseSynth;
   click: import("tone").MembraneSynth;
+  /** Backing-track kit pieces (open hat, ride, rim click, crash). */
+  ohat: import("tone").NoiseSynth;
+  ride: import("tone").NoiseSynth;
+  ridePing: import("tone").MembraneSynth;
+  rim: import("tone").MembraneSynth;
+  crash: import("tone").NoiseSynth;
   /** Built on demand (only when a lead line is played). Two voices per string family so double stops can sound together. */
   lead: LeadRig | null;
   fx: { dispose(): unknown }[];
@@ -184,13 +190,58 @@ function buildKit(Tone: ToneMod): Kit {
   }).connect(bus);
   click.volume.value = -14;
 
-  return { bus, pluckBright, pluckWarm, pluckNormal, bass, organ, kick, snare, hat, click, lead: null, fx };
+  // Cymbals: filtered noise (no MetalSynth, so the kit stays light and testable).
+  const ohatHp = keep(new Tone.Filter({ type: "highpass", frequency: 6500 }));
+  ohatHp.connect(bus);
+  const ohat = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.002, decay: 0.24, sustain: 0 },
+  }).connect(ohatHp);
+  ohat.volume.value = -24;
+
+  const rideHp = keep(new Tone.Filter({ type: "highpass", frequency: 5200 }));
+  rideHp.connect(bus);
+  const ride = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.001, decay: 0.32, sustain: 0 },
+  }).connect(rideHp);
+  ride.volume.value = -27;
+  // A short high "ping" gives the ride its bell-like stick sound.
+  const ridePing = new Tone.MembraneSynth({
+    pitchDecay: 0.002,
+    octaves: 0.3,
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.05 },
+  }).connect(bus);
+  ridePing.volume.value = -30;
+
+  const rim = new Tone.MembraneSynth({
+    pitchDecay: 0.004,
+    octaves: 1.5,
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
+  }).connect(bus);
+  rim.volume.value = -16;
+
+  const crashHp = keep(new Tone.Filter({ type: "highpass", frequency: 3800 }));
+  crashHp.connect(bus);
+  const crash = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.002, decay: 1.3, sustain: 0 },
+  }).connect(crashHp);
+  crash.volume.value = -23;
+
+  return {
+    bus, pluckBright, pluckWarm, pluckNormal, bass, organ, kick, snare, hat, click,
+    ohat, ride, ridePing, rim, crash, lead: null, fx,
+  };
 }
 
 function disposeKit(kit: Kit) {
   for (const x of [
     kit.pluckBright, kit.pluckWarm, kit.pluckNormal, kit.bass, kit.organ,
-    kit.kick, kit.snare, kit.hat, kit.click, ...kit.fx,
+    kit.kick, kit.snare, kit.hat, kit.click,
+    kit.ohat, kit.ride, kit.ridePing, kit.rim, kit.crash, ...kit.fx,
   ]) {
     try { x.dispose(); } catch { /* ignore */ }
   }
@@ -230,7 +281,7 @@ function pluckFor(kit: Kit, timbre?: Timbre) {
 }
 
 /** Bump when kit levels / voices change so a live session rebuilds. */
-const KIT_GEN = 5;
+const KIT_GEN = 6;
 
 class TheoryPlayerImpl implements TheoryPlayer {
   private kit: Kit | null = null;
@@ -358,6 +409,19 @@ class TheoryPlayerImpl implements TheoryPlayer {
             break;
           case "hat":
             kit.hat.triggerAttackRelease(0.04, at, vel * 0.7);
+            break;
+          case "ohat":
+            kit.ohat.triggerAttackRelease(0.2, at, vel * 0.8);
+            break;
+          case "ride":
+            kit.ride.triggerAttackRelease(0.3, at, vel * 0.8);
+            kit.ridePing.triggerAttackRelease(2600, 0.15, at, vel * 0.6);
+            break;
+          case "rim":
+            kit.rim.triggerAttackRelease(1500, 0.04, at, vel);
+            break;
+          case "crash":
+            kit.crash.triggerAttackRelease(1.2, at, vel);
             break;
           case "click":
             kit.click.triggerAttackRelease(e.velocity >= 0.95 ? 1400 : 900, 0.04, at, vel);

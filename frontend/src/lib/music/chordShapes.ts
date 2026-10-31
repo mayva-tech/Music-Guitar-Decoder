@@ -5,7 +5,7 @@
 import { MAX_FRET, STANDARD_TUNING } from "@/lib/music/guitar";
 import type { ChordDiagram } from "@/lib/types";
 import type { ChordQuality } from "@/lib/music/scaleFretmap";
-import { NOTE_NAMES_SHARP } from "@/lib/music/theory";
+import { NOTE_NAMES_FLAT, NOTE_NAMES_SHARP } from "@/lib/music/theory";
 
 export interface ChordShape extends ChordDiagram {}
 
@@ -223,4 +223,90 @@ export function shapeToHighlights(shape: ChordShape): {
     }
   }
   return out;
+}
+
+/** Triad (or power) intervals from the root — always the “notes of the chord”, not extensions. */
+const TRIAD_IV: Record<string, number[]> = {
+  maj: [0, 4, 7],
+  min: [0, 3, 7],
+  dim: [0, 3, 6],
+  aug: [0, 4, 8],
+  "5": [0, 7],
+  "7": [0, 4, 7],
+  maj7: [0, 4, 7],
+  m7: [0, 3, 7],
+};
+
+type ParsedSymbol = { rootPc: number; quality: string; flats: boolean };
+
+/** Pull root + quality from labels like "C", "Am", "F#m7", "Bb°", "E5", "Gmaj7". */
+function parseChordSymbol(symbol: string): ParsedSymbol | null {
+  const m = /^([A-Ga-g])([#b♯♭]?)(.*)$/.exec(symbol.trim().replace(/\s+/g, ""));
+  if (!m) return null;
+  const letter = m[1]!.toUpperCase();
+  const accRaw = m[2] ?? "";
+  const flats = accRaw === "b" || accRaw === "♭";
+  const sharp = accRaw === "#" || accRaw === "♯";
+  const pc = sharp
+    ? NOTE_NAMES_SHARP.indexOf(`${letter}#`)
+    : flats
+      ? NOTE_NAMES_FLAT.indexOf(`${letter}b`)
+      : NOTE_NAMES_SHARP.indexOf(letter);
+  if (pc < 0) return null;
+  const rest = (m[3] ?? "").replace(/[°º]/g, "°").replace(/♯/g, "#").replace(/♭/g, "b");
+  let quality: string;
+  if (/^(maj7|M7|Δ7?)/i.test(rest)) quality = "maj7";
+  else if (/^(m7|min7|−7|-7)/i.test(rest)) quality = "m7";
+  else if (/^(dim|diminished|°|o)/i.test(rest)) quality = "dim";
+  else if (/^(aug|augmented|\+)/i.test(rest)) quality = "aug";
+  else if (/^(5|power)/i.test(rest)) quality = "5";
+  else if (/^7/.test(rest)) quality = "7";
+  else if (/^(m|min|minor|-)$/i.test(rest) || /^m(?!aj)/i.test(rest)) quality = "min";
+  else if (rest === "" || /^(maj|major|M)$/i.test(rest)) quality = "maj";
+  else if (/^(m|min)?(9|11|13|sus|add)/i.test(rest)) quality = /^(m|min)/i.test(rest) ? "min" : "maj";
+  else return null;
+  return { rootPc: pc, quality, flats };
+}
+
+function namesForPcs(pcs: number[], flats: boolean): string[] {
+  const names = flats ? NOTE_NAMES_FLAT : NOTE_NAMES_SHARP;
+  return pcs.map((pc) => names[((pc % 12) + 12) % 12]!);
+}
+
+/** Unique pitch classes sounded by a shape, root-first when known. */
+function tonesFromShape(shape: ChordShape, rootPc: number | null, flats: boolean): string[] {
+  const seen = new Set<number>();
+  const pcs: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const f = shape.frets[i];
+    if (f == null) continue;
+    const pc = ((STANDARD_TUNING[6 - i]! + f) % 12 + 12) % 12;
+    if (seen.has(pc)) continue;
+    seen.add(pc);
+    pcs.push(pc);
+  }
+  if (rootPc != null && pcs.includes(rootPc)) {
+    pcs.sort((a, b) => {
+      const da = (a - rootPc + 12) % 12;
+      const db = (b - rootPc + 12) % 12;
+      return da - db;
+    });
+  }
+  return namesForPcs(pcs, flats);
+}
+
+/**
+ * The chord's notes for a diagram caption (root · third · fifth).
+ * Prefers the triad implied by the symbol; falls back to unique pitches in the shape.
+ * Power chords return two notes (root · fifth).
+ */
+export function chordToneNames(symbol: string, shape?: ChordShape): string[] {
+  // Full symbol first; then the leading token ("D triad…" → "D") for titled shapes.
+  const parsed = parseChordSymbol(symbol) ?? parseChordSymbol(symbol.trim().split(/\s+|\(/)[0] ?? "");
+  if (parsed) {
+    const iv = TRIAD_IV[parsed.quality];
+    if (iv) return namesForPcs(iv.map((i) => parsed.rootPc + i), parsed.flats);
+  }
+  if (shape) return tonesFromShape(shape, parsed?.rootPc ?? null, parsed?.flats ?? false);
+  return [];
 }

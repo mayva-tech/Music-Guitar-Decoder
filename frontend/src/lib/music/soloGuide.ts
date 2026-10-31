@@ -11,6 +11,7 @@
  * Location: frontend/src/lib/music/soloGuide.ts
  */
 import { MAX_FRET, STANDARD_TUNING } from "@/lib/music/guitar";
+import { chordSymbolPcs } from "./chordSymbol";
 import { midiToName, pitchClassName } from "@/lib/music/theory";
 import { rootPc, scaleKindPcs, type ScaleMode, type ScaleRoot } from "@/lib/music/scaleFretmap";
 import { BASS_ROOT, CHORD_VOICINGS, type BlockItem, type TheoryEvent, type TheoryExample } from "@/lib/theory/content";
@@ -103,6 +104,11 @@ export const CHORD_TONES: Record<string, number[]> = {
   G7: [7, 11, 2, 5], Cmaj7: [0, 4, 7, 11], Dm7: [2, 5, 9, 0], Dm: [2, 5, 9],
 };
 
+/** Chord-tone pitch classes for any chord symbol (the table above first, then the chord parser). */
+export function chordTonesOf(chord: string): number[] | null {
+  return CHORD_TONES[chord] ?? chordSymbolPcs(chord);
+}
+
 /* ------------------------------------------------------------ boxes */
 
 export const BOX_MODES: ScaleMode[] = ["minor-pentatonic", "major-pentatonic", "blues"];
@@ -150,7 +156,7 @@ export function fretRange(cells: NeckCell[]): { lo: number; hi: number } {
  * plus chord tones outside the scale (inScale false, drawn dashed) within the box's fret range.
  */
 export function chordToneCells(chord: string, root: ScaleRoot, mode: ScaleMode, box = 0, maxFret = MAX_FRET, nearFret?: number): (NeckCell & { name: string; inScale: boolean })[] {
-  const tones = CHORD_TONES[chord];
+  const tones = chordTonesOf(chord);
   if (!tones) return [];
   const pcs = scaleKindPcs(rootPc(root), mode);
   const cells = box ? pentatonicBox(root, mode, box, nearFret) : null;

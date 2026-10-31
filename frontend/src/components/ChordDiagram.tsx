@@ -1,7 +1,19 @@
 // Classic chord box: strings 6..1 left to right, nut on top, O = open, X = muted.
+import { chordToneNames } from "@/lib/music/chordShapes";
 import type { ChordDiagram as Diagram } from "@/lib/types";
 
-export function ChordDiagram({ name, diagram, size = 1 }: { name: string; diagram: Diagram; size?: number }) {
+export function ChordDiagram({
+  name,
+  diagram,
+  size = 1,
+  notes,
+}: {
+  name: string;
+  diagram: Diagram;
+  size?: number;
+  /** Override the triad caption (root · third · fifth). Defaults from the chord name / shape. */
+  notes?: string[];
+}) {
   const fretted = diagram.frets.filter((f): f is number => f !== null && f > 0);
   const maxF = Math.max(0, ...fretted);
   const minF = fretted.length ? Math.min(...fretted) : 1;
@@ -14,6 +26,7 @@ export function ChordDiagram({ name, diagram, size = 1 }: { name: string; diagra
   const h = top + gap * rows + 14 * size;
   const sx = (i: number) => left + i * gap;
   const fy = (f: number) => top + (f - base + 0.5) * gap;
+  const tones = notes ?? chordToneNames(name, diagram);
   return (
     <figure className="flex flex-col items-center">
       <svg width={w} height={h} role="img" aria-label={`${name} chord diagram`}>
@@ -48,6 +61,15 @@ export function ChordDiagram({ name, diagram, size = 1 }: { name: string; diagra
           );
         })}
       </svg>
+      {tones.length > 0 && (
+        <figcaption
+          className="mt-0.5 text-center font-mono text-[0.7rem] font-semibold tracking-wide text-muted"
+          style={{ fontSize: Math.max(10, 11 * size) }}
+          data-testid="chord-diagram-notes"
+        >
+          {tones.join(" · ")}
+        </figcaption>
+      )}
     </figure>
   );
 }

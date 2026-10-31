@@ -21,6 +21,10 @@ export type EventKind =
   | "kick"
   | "snare"
   | "hat"
+  | "ohat" // open hi-hat (backing tracks)
+  | "ride" // ride cymbal (backing tracks)
+  | "rim" // rim click / side stick (backing tracks)
+  | "crash" // crash cymbal (backing tracks)
   | "click" // metronome; velocity >= 0.95 is the accented (higher) click
   | "highlight"; // silent: lights `highlight` for `beats`
 

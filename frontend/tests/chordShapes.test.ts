@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shapeForChord, shapesForChord, shapeToHighlights } from "@/lib/music/chordShapes";
+import { chordToneNames, shapeForChord, shapesForChord, shapeToHighlights } from "@/lib/music/chordShapes";
 import { relatedScaleChords } from "@/lib/music/scaleFretmap";
 
 describe("chordShapes", () => {
@@ -50,5 +50,20 @@ describe("chordShapes", () => {
       expect(list[0]!.shape.frets).toHaveLength(6);
       expect(list[0]!.shape.fingers).toHaveLength(6);
     }
+  });
+
+  it("lists the triad notes under a chord name (root · third · fifth)", () => {
+    expect(chordToneNames("C")).toEqual(["C", "E", "G"]);
+    expect(chordToneNames("Am")).toEqual(["A", "C", "E"]);
+    expect(chordToneNames("Bdim")).toEqual(["B", "D", "F"]);
+    expect(chordToneNames("E5")).toEqual(["E", "B"]);
+    expect(chordToneNames("G7")).toEqual(["G", "B", "D"]);
+    expect(chordToneNames("Bb")).toEqual(["Bb", "D", "F"]);
+    expect(chordToneNames("F#m")).toEqual(["F#", "A", "C#"]);
+  });
+
+  it("falls back to unique pitches in the shape when the label is not a plain chord symbol", () => {
+    const shape = shapeForChord("D", "maj");
+    expect(chordToneNames("D triad (7th fret)", shape)).toEqual(["D", "F#", "A"]);
   });
 });

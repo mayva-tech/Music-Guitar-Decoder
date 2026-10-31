@@ -493,6 +493,7 @@ export default function LearnPage() {
           <Link href="/learn/by-ear" className="btn btn-ghost">Play any song by ear</Link>
           <Link href="/learn/solo" className="btn btn-ghost">Lead solo workshop</Link>
           <Link href="/learn/greats" className="btn btn-ghost">Guitar greats</Link>
+          <Link href="/learn/backing" className="btn btn-ghost">Backing tracks</Link>
           <button type="button" className="btn btn-ghost" data-testid="learn-fretmap" onClick={() => setFretmapOpen(true)}>
             Fretboard map
           </button>
@@ -544,6 +545,9 @@ export default function LearnPage() {
             </Link>
             <Link href="/learn/greats" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="greats-link">
               Guitar greats
+            </Link>
+            <Link href="/learn/backing" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="backing-link">
+              Backing tracks
             </Link>
             <button
               type="button"

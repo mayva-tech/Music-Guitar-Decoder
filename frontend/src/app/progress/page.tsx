@@ -27,6 +27,19 @@ export default function ProgressPage() {
     api.progress().then(setData).catch((e) => setError(e.message));
   }, []);
 
+  // Deep link from other pages (e.g. Backing tracks): /progress?lesson=twelve-bar opens that lesson.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("lesson");
+    const lesson = id ? LESSONS.find((l) => l.id === id) : undefined;
+    if (!lesson) return;
+    if (lesson.detailHref) {
+      window.location.replace(lesson.detailHref);
+      return;
+    }
+    setSelectedId(lesson.id);
+    setFloatOpen(true);
+  }, []);
+
   const selectedLesson = useMemo(
     () => (selectedId ? LESSONS.find((l) => l.id === selectedId) ?? null : null),
     [selectedId],

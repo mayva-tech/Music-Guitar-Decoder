@@ -26,3 +26,6 @@ export const IconUpload = (p: P) => <svg {...base(p)}><path d="M12 16V4M7 9l5-5 
 export const IconHeadphones = (p: P) => <svg {...base(p)}><path d="M4 15v-3a8 8 0 0 1 16 0v3" /><rect x="3" y="14" width="4" height="7" rx="1.5" /><rect x="17" y="14" width="4" height="7" rx="1.5" /></svg>;
 export const IconSearch = (p: P) => <svg {...base(p)}><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>;
 export const IconRiff = (p: P) => <svg {...base(p)}><path d="M9 18V6l11-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="16" r="2.5" /></svg>;
+export const IconDrum = (p: P) => (
+  <svg {...base(p)}><ellipse cx="12" cy="9" rx="8" ry="3.5" /><path d="M4 9v7c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V9" /><path d="M8 12.2v6.9M16 12.2v6.9M14 3l5 4M10 3 5 7" /></svg>
+);

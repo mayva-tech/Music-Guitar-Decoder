@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { IconChart, IconGuitar, IconHome, IconLibrary, IconMic, IconRiff, IconSearch, IconSettings, IconWave } from "./Icons";
+import { IconChart, IconDrum, IconGuitar, IconHome, IconLibrary, IconMic, IconRiff, IconSearch, IconSettings, IconWave } from "./Icons";
 
 export const NAV = [
   { href: "/", label: "Home", Icon: IconHome },
@@ -14,6 +14,7 @@ export const NAV = [
   { href: "/learn/theory", label: "Theory map", short: "Theory", Icon: IconWave },
   { href: "/learn/solo", label: "Lead solos", short: "Solos", Icon: IconRiff },
   { href: "/learn/greats", label: "Guitar greats", short: "Greats", Icon: IconGuitar },
+  { href: "/learn/backing", label: "Backing tracks", short: "Backing", Icon: IconDrum },
   { href: "/learn/find", label: "Find", short: "Find", Icon: IconLibrary },
   { href: "/learn/by-ear", label: "Play by ear", short: "By ear", Icon: IconMic },
   { href: "/riffs", label: "Riff practice", short: "Riffs", Icon: IconRiff },
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           !path.startsWith("/learn/by-ear") &&
           !path.startsWith("/learn/solo") &&
           !path.startsWith("/learn/greats") &&
+          !path.startsWith("/learn/backing") &&
           !path.startsWith("/learn/find"))
       );
     }

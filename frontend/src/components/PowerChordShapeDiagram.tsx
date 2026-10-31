@@ -20,7 +20,7 @@ export function PowerChordShapeDiagram({ className }: { className?: string }) {
   const boardW = FRETS * fretW;
   const boardH = 90;
   const width = left + boardW + 24;
-  const height = top + boardH + 36;
+  const height = top + boardH + 48;
 
   const root = { string: 6 as const, fret: 3 }; // illustrative: C5 at 3rd fret
   const fifth = { string: 5 as const, fret: 5 };
@@ -39,7 +39,10 @@ export function PowerChordShapeDiagram({ className }: { className?: string }) {
       >
         <title>Power chord shape</title>
         <text x={12} y={18} fontSize="14" fontWeight="800" fill="var(--color-ink)">Power chord shape</text>
-        <text x={12} y={height - 10} fontSize="11" fill="var(--color-muted)">
+        <text x={12} y={height - 22} fontSize="12" fontWeight="700" fill="var(--color-muted)" fontFamily="ui-monospace, monospace">
+          C · G
+        </text>
+        <text x={12} y={height - 8} fontSize="11" fill="var(--color-muted)">
           Index on root · ring +2 frets on next thinner string — slide the shape
         </text>
 

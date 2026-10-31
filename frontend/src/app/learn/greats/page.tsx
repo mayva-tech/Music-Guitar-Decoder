@@ -11,6 +11,7 @@ import { LickTab } from "@/components/solo/LickTab";
 import { LickNeck, chordListFor, mapRequestForLick, type MapRequest } from "@/components/solo/shared";
 import { useSoloAudio } from "@/components/solo/useSoloAudio";
 import { shapeToStrumSound } from "@/lib/audio/strumChord";
+import { chordToneNames } from "@/lib/music/chordShapes";
 import { GREATS, GREATS_BY_ID, type Great, type GreatLick } from "@/lib/music/greats";
 import { useApp, useHydrated } from "@/lib/store";
 import { shapeSteps } from "@/lib/theory/earPlayAlong";
@@ -208,6 +209,9 @@ function ChordStage({ great, onPlayStop }: { great: Great; onPlayStop: () => voi
         </div>
         <div>
           <h3 className="display text-2xl" data-testid="greats-chord-name">{chord.name}</h3>
+          <p className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-muted" data-testid="greats-chord-notes">
+            {chordToneNames(chord.name, chord.shape).join(" · ")}
+          </p>
           <p className="mt-1 text-sm leading-relaxed text-muted">{chord.text}</p>
           <ul className="mt-3 space-y-1 text-sm" data-testid="greats-chord-steps">{shapeSteps(chord.shape).map((s) => <li key={s}>• {s}</li>)}</ul>
           <button type="button" className="btn btn-primary btn-sm mt-3" onClick={() => void strum()} data-testid="greats-strum">

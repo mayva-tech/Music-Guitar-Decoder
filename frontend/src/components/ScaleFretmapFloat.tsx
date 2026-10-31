@@ -7,7 +7,8 @@ import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
 import { LickTab } from "@/components/solo/LickTab";
 import { shapesForChord } from "@/lib/music/chordShapes";
 import { parseChordQuery } from "@/lib/music/findSearch";
-import { BOX_MODES, CHORD_TONES, fretRange, lickWindow, pentatonicBox, type Lick } from "@/lib/music/soloGuide";
+import { parseChord } from "@/lib/music/chordSymbol";
+import { BOX_MODES, chordTonesOf, fretRange, lickWindow, pentatonicBox, type Lick } from "@/lib/music/soloGuide";
 import { pitchClassName } from "@/lib/music/theory";
 import {
   SCALE_KINDS,
@@ -274,8 +275,8 @@ export function ScaleFretmapFloat({
     const cs = pentatonicBox(root, mode, activeBox, lickNear);
     return cs ? fretRange(cs) : null;
   }, [activeBox, root, mode, lickNear]);
-  const toneChord = chordList && tonesChord && CHORD_TONES[tonesChord] ? tonesChord : null;
-  const toneNames = toneChord ? CHORD_TONES[toneChord]!.map((pc) => pitchClassName(pc + 60)) : [];
+  const toneChord = chordList && tonesChord && chordTonesOf(tonesChord) ? tonesChord : null;
+  const toneNames = toneChord ? chordTonesOf(toneChord)!.map((pc) => pitchClassName(pc + 60)) : [];
 
   if (!open || !mounted) return null;
 
@@ -307,7 +308,8 @@ export function ScaleFretmapFloat({
             {chordList ? "Chord tones" : "Chords"}
           </span>
           {chordList?.map((sym) => {
-            const rootName = sym.match(/^[A-G]#?/)?.[0] ?? sym;
+            const parsed = parseChord(sym);
+            const rootName = parsed ? pitchClassName(parsed.root + 60) : sym.match(/^[A-G]#?/)?.[0] ?? sym;
             const { fill, ink } = noteMarkerColors(rootName);
             const active = tonesChord === sym;
             return (

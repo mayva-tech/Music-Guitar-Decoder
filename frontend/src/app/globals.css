@@ -306,3 +306,17 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .cg-note.is-on .cg-pop { transform: none; }
 }
+
+/* Backing tracks (/learn/backing): drum-grid columns light as `st_<k>` plays. */
+@media (min-width: 900px) {
+  .bk-sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+}
+.bk-cell { padding: 1.5px 1px; }
+.bk-cell.bk-beat { border-left: 1px solid var(--color-line); padding-left: 2px; }
+.bk-grid .bk-step:not(th) { background-color: color-mix(in srgb, var(--color-panel-2) 70%, transparent); }
+.bk-grid .bk-step { transition: box-shadow 60ms linear; }
+.bk-grid .bk-step.is-on { box-shadow: 0 0 0 2px var(--theory-highlight); }
+.bk-grid th.bk-step.is-on { color: var(--theory-highlight); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bk-grid .bk-step { transition: none; }
+}

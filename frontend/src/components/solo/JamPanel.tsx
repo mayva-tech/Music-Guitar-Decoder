@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { SectionHead, type ShowMap } from "./shared";
 import type { SoloAudio } from "./useSoloAudio";
@@ -28,7 +29,11 @@ export function JamPanel({ audio, onShowMap }: { audio: SoloAudio; onShowMap: Sh
   return (
     <section id="jam" aria-labelledby="solo-jam-heading" className="scroll-mt-4 space-y-4" data-testid="solo-jam">
       <SectionHead id="solo-jam-heading" eyebrow="Jam" title="Play over a backing track">
-        Four loops that run until you stop them. Open the map, ring the current chord, and improvise.
+        Four loops that run until you stop them. Open the map, ring the current chord, and improvise.{" "}
+        <Link href="/learn/backing" className="underline decoration-line underline-offset-2 hover:text-ink" data-testid="jam-more-backing">
+          200 more drum and bass loops in ten genres
+        </Link>
+        .
       </SectionHead>
       <div className="grid gap-4 min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div role="radiogroup" aria-label="Backing track" className="surface divide-y divide-line px-2">

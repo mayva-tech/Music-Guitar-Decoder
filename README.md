@@ -81,6 +81,33 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
   and leaving the page stops everything.
 - Tests: `tests/soloNeck.test.ts` (neck layers), `tests/soloPlayer.test.ts` (lead line, loop), `e2e/solo.spec.ts`.
 
+## Backing tracks
+
+**Backing tracks** (`/learn/backing`) has 200 drum and bass loops to play guitar over: 10 genres × 20 loops, each at its own tempo.
+
+| Genre | Tempos | Grooves |
+|---|---|---|
+| Rock | 64–156 BPM | straight and driving eighths, half-time, four on the floor, 16th hats, ride, shuffle, 6/8 |
+| Pop | 60–140 | backbeat, dance floor, rim-click ballad, syncopated, half-time, tresillo, 6/8, waltz |
+| Blues | 52–150 | shuffle, Texas shuffle, slow 12/8, train beat, jump swing, straight eight; 12-bar, quick change, minor and 8-bar forms |
+| Funk | 74–130 | on the one, tight 16ths, disco, breakbeat, swung pocket, half-time |
+| Metal | 58–200 | gallop, double kick, half-time, thrash skank, doom, chug |
+| Punk | 86–212 | punk eight, skate beat, floor stomp, breakdown, dance-punk |
+| Country | 64–176 | two-step, train beat, shuffle, waltz, country rock, ballad |
+| Reggae | 62–160 | one drop, rockers, steppers, ska, dub, lovers rock |
+| Jazz | 60–208 | swing ride with walking bass, two-feel, ballad, jazz waltz, bossa nova |
+| Soul & R&B | 58–136 | Motown, 12/8 soul, R&B half-time, neo-soul, gospel shuffle, disco soul |
+
+* The bass follows the chords: roots, fifths, octaves, boogie and walking lines with half-step approaches into the next chord.
+* The last bar of each pass has a genre fill; rock, pop, metal and punk crash on the repeat.
+* Play loops bar by bar, so tempo (50–150% of the original) and the drums / bass / count-in switches apply from the next bar.
+* A drum grid lights each step as it plays, with the bass notes of the current bar underneath.
+* Every genre and every loop links to the matching lessons: Lead solos, the pentatonic box, CAGED, Progress lessons (`/progress?lesson=…`), Theory map terms, Play by ear steps, riffs (`/riffs?genre=…`, `?source=modern`) and Guitar greats.
+* "Show … on fretboard" opens the fretboard map in the loop's key and scale, with chord-tone pills that follow the playing chord.
+* Deep links: `/learn/backing#blues` (a genre) or `/learn/backing#blues-03` (a loop).
+
+Content lives in `frontend/src/lib/music/backingTracks.ts` (patterns as step strings, so adding a loop is one line).
+
 ## What's new in v4: modern-style riffs and finger animation
 
 **10 original riffs in modern styles.** These are written for this app, not taken from any song. Use the *Modern styles*
