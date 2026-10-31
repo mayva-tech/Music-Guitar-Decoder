@@ -320,3 +320,5 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .bk-grid .bk-step { transition: none; }
 }
+.bk-playhead { transition: left 140ms linear; }
+@media (prefers-reduced-motion: reduce) { .bk-playhead { transition: none; } }

@@ -106,6 +106,11 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
 * Every genre and every loop links to the matching lessons: Lead solos, the pentatonic box, CAGED, Progress lessons (`/progress?lesson=…`), Theory map terms, Play by ear steps, riffs (`/riffs?genre=…`, `?source=modern`) and Guitar greats.
 * "Show … on fretboard" opens the fretboard map in the loop's key and scale, with chord-tone pills that follow the playing chord.
 * Deep links: `/learn/backing#blues` (a genre) or `/learn/backing#blues-03` (a loop).
+* **Solo guide** (below the player) for every loop:
+  * a tall live fretboard zoomed to the solo position (pentatonic box 1, or a five-fret window for seven-note scales; *Whole neck* zooms out). The current chord's tones are ringed (tones outside the scale dashed) and jump to the next chord one beat before it arrives;
+  * a chord-change timeline with a playhead and a "G in 3 beats" countdown; tap a bar while stopped to preview it;
+  * a suggested lick written over the loop's own chords (*Long notes*, *On the beat*, *Phrased*): it lands on a chord tone at each change and steps into the next chord, is drawn on the neck bar by bar with numbered notes and TAB, and can play on the lead voice with the loop;
+  * chord boxes for every chord in the loop with ◀ ▶ arrows through its voicings, low to high (open, E-, A- and D-form shapes, including 7th, 9th, 6th and m7♭5 chords); *On neck* shows the shape with fingers on the big fretboard.
 
 Content lives in `frontend/src/lib/music/backingTracks.ts` (patterns as step strings, so adding a loop is one line).
 

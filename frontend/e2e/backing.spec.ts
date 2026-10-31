@@ -96,6 +96,42 @@ test.describe("Backing tracks", () => {
     await expect(page.getByTestId("backing-row-bpm-pop-02-value")).toHaveText("124");
   });
 
+  test("solo guide: chord shapes step up the neck, the lick plays on the live fretboard, the countdown runs", async ({ page }) => {
+    await page.goto("/learn/backing#rock-01"); // Garage Eighths: Am G F G
+    const guide = page.getByTestId("solo-guide");
+    await guide.scrollIntoViewIfNeeded();
+    await expect(guide.getByTestId("guide-chords").locator("li")).toHaveCount(3);
+
+    // Voicing arrows.
+    await expect(guide.getByTestId("guide-chord-Am-label")).toContainText("Open");
+    await guide.getByTestId("guide-chord-Am-up").click();
+    await expect(guide.getByTestId("guide-chord-Am-label")).toContainText("2/");
+    await expect(guide.getByTestId("guide-chord-Am-down")).toBeEnabled();
+    await guide.getByTestId("guide-chord-Am-neck").click();
+    await expect(guide.locator('[data-testid="chord-place-layer"]')).toBeVisible();
+    await guide.getByTestId("guide-chord-Am-neck").click();
+    await expect(guide.locator('[data-testid="lick-layer"]')).toBeVisible();
+
+    // Preview a bar while stopped, switch lick style.
+    await guide.getByTestId("guide-bar-2").click();
+    await expect(guide.getByTestId("guide-countdown")).toContainText("Bar 3");
+    await expect(guide.locator('[data-testid="chord-tone-layer"]')).toHaveAttribute("data-chord", "F");
+    const tabLong = await guide.getByTestId("guide-tab").innerText();
+    await guide.getByTestId("guide-style-phrase").click();
+    await expect(guide.getByTestId("guide-tab")).not.toHaveText(tabLong);
+
+    // Play with the lick: a lick note lights, the countdown counts, the rings follow the chord.
+    await guide.getByTestId("guide-lick-sound").click();
+    await page.getByTestId("backing-part-countIn").click();
+    await guide.getByTestId("guide-toggle").click();
+    await expect(guide.getByTestId("guide-toggle")).toHaveAttribute("aria-pressed", "true");
+    await expect(guide.locator(".solo-hl.is-on").first()).toBeAttached({ timeout: 4000 });
+    await expect(guide.getByTestId("guide-countdown")).toContainText(/in \d beats?|aim for/);
+    await expect(guide.locator('[data-testid="chord-tone-layer"]')).toHaveAttribute("data-chord", "G", { timeout: 6000 });
+    await guide.getByTestId("guide-toggle").click();
+    await expect(guide.getByTestId("guide-toggle")).toHaveAttribute("aria-pressed", "false");
+  });
+
   test("no horizontal page scroll at 390px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/learn/backing#metal-02");

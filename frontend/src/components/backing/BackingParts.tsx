@@ -303,7 +303,7 @@ export function DrumGrid({ track, bar, colour }: { track: BackingTrack; bar: num
 /* ------------------------------------------------------------- the player */
 
 export function LoopPlayer({
-  track, genre, audio, settings, onSettings, onOpenMap, scopeRef,
+  track, genre, audio, settings, onSettings, onOpenMap, onPlay, scopeRef,
 }: {
   track: BackingTrack;
   genre: Genre;
@@ -311,6 +311,8 @@ export function LoopPlayer({
   settings: LoopSettings;
   onSettings: (s: Partial<LoopSettings>) => void;
   onOpenMap: () => void;
+  /** Starts this loop with the current settings (and the lick, if it is switched on). */
+  onPlay: () => void;
   scopeRef: RefObject<HTMLDivElement | null>;
 }) {
   const playing = audio.playingId === track.id;
@@ -373,7 +375,7 @@ export function LoopPlayer({
           className="btn btn-primary"
           aria-pressed={playing}
           data-testid="backing-toggle"
-          onClick={() => (playing ? audio.stop() : audio.start(track, settings))}
+          onClick={() => (playing ? audio.stop() : onPlay())}
         >
           {playing ? <IconStop width={18} height={18} /> : <IconPlay width={18} height={18} />}
           {playing ? "Stop" : "Play loop"}

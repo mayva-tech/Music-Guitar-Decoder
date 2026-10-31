@@ -12,6 +12,9 @@ import type { Sound } from "./ear";
 
 type ToneMod = typeof import("tone");
 
+/** A Sound that may carry its own lead line (beats relative to its start). */
+export type LeadSound = Sound & { lead?: PlayableNote[] };
+
 export interface PlayOptions {
   /** Lead line (lick notes, beats relative to the example start) played with playLead + articulation. */
   lead?: PlayableNote[];
@@ -23,12 +26,12 @@ export interface PlayOptions {
    * Looping only: called at the start of every pass after the first to get the example to play
    * (so a tempo change applies from the next loop). Falls back to the original example.
    */
-  nextExample?: () => Sound;
+  nextExample?: () => LeadSound;
 }
 
 export interface TheoryPlayer {
   /** Accepts a full TheoryExample or a Sound (drills have no visual). */
-  play(ex: Sound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void>;
+  play(ex: LeadSound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void>;
   stop(): void;
   readonly playing: boolean;
 }
@@ -337,7 +340,7 @@ class TheoryPlayerImpl implements TheoryPlayer {
     done?.();
   }
 
-  async play(ex: Sound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void> {
+  async play(ex: LeadSound, onHighlight: (id: string, on: boolean) => void, opts?: PlayOptions): Promise<void> {
     this.stop();
     try { getEngine().stop(); } catch { /* ignore */ }
     const myRun = ++this.run;
@@ -363,8 +366,21 @@ class TheoryPlayerImpl implements TheoryPlayer {
     }
 
     /** Schedules one pass of the example (backing, lead, highlights) starting at `t0`; returns its length in seconds. */
-    const schedulePass = (cur: Sound, t0: number): number => {
+    const schedulePass = (cur: LeadSound, t0: number): number => {
     const beatSec = 60 / cur.bpm;
+    // A pass may carry its own lead line (backing tracks change it bar by bar); otherwise use opts.lead.
+    const passLead = cur.lead && cur.lead.length ? [...cur.lead].sort((a, b) => a.start_beat - b.start_beat) : lead;
+    if (passLead && !kit.lead) {
+      try { kit.lead = buildLeadRig(Tone, kit, opts?.leadTone ?? "clean"); } catch { kit.lead = null; }
+    }
+    const passPrev = passLead === lead ? leadPrev : new Map<PlayableNote, PlayableNote | undefined>();
+    if (passLead && passLead !== lead) {
+      const last: Record<number, PlayableNote | undefined> = {};
+      for (const n of passLead) {
+        passPrev.set(n, last[n.string]);
+        last[n.string] = n;
+      }
+    }
 
     const scheduleHl = (id: string | undefined, start: number, beats: number) => {
       if (!id) return;
@@ -439,15 +455,15 @@ class TheoryPlayerImpl implements TheoryPlayer {
     }
 
     const rig = kit.lead;
-    if (lead && rig) {
-      for (const n of lead) {
+    if (passLead && rig) {
+      for (const n of passLead) {
         const at = t0 + n.start_beat * beatSec;
         const dur = Math.max(0.08, n.duration_beats * beatSec * 0.96);
         try {
           const kind = warmToneKind(n.string, n.midi);
           const voice = claimLeadVoice(rig, kind, at, dur);
           const vel = kind === "bass" ? 0.9 : 0.8;
-          playLead(voice.synth, n.midi, at, dur, vel, articulation(n, leadPrev.get(n)));
+          playLead(voice.synth, n.midi, at, dur, vel, articulation(n, passPrev.get(n)));
         } catch {
           /* one bad note must not abort the lick */
         }

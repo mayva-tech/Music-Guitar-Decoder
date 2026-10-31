@@ -5,12 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageTitle } from "@/components/AppShell";
 import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { GenreIntro, GenrePicker, LoopPlayer, TrackList } from "@/components/backing/BackingParts";
+import { SoloGuide } from "@/components/backing/SoloGuide";
 import { useBackingAudio, type LoopSettings } from "@/components/backing/useBackingAudio";
 import {
   GENRES, GENRES_BY_ID, TRACKS_BY_ID, chordsOf, tracksFor,
   type BackingTrack, type GenreId, type TempoBand,
 } from "@/lib/music/backingTracks";
 import { BOX_MODES } from "@/lib/music/soloGuide";
+import { guideLick, type LickStyle } from "@/lib/music/backingSolo";
+import { useApp, useHydrated } from "@/lib/store";
 
 const DEFAULT_SETTINGS = (t: BackingTrack, bpm = t.bpm): LoopSettings => ({ bpm, drums: true, bass: true, countIn: true });
 
@@ -36,6 +39,11 @@ export default function BackingTracksPage() {
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
   const audio = useBackingAudio(scopeRef);
+  const hydrated = useHydrated();
+  const storedTone = useApp((st) => st.prefs.leadTone);
+  const leadTone = hydrated ? storedTone : "clean";
+  const [lickStyle, setLickStyle] = useState<LickStyle>("long");
+  const [lickOn, setLickOn] = useState(false);
   const [genreId, setGenreId] = useState<GenreId>("rock");
   const [trackId, setTrackId] = useState<string>(tracksFor("rock")[0]!.id);
   const [band, setBand] = useState<TempoBand | "all">("all");
@@ -49,6 +57,18 @@ export default function BackingTracksPage() {
   const genre = GENRES_BY_ID[genreId];
   const tracks = useMemo(() => tracksFor(genreId), [genreId]);
   const track = TRACKS_BY_ID[trackId] ?? tracks[0]!;
+  const lick = useMemo(() => guideLick(track, lickStyle), [track, lickStyle]);
+
+  /** Starts a loop with its settings, plus the suggested lick on the lead voice when that is switched on. */
+  const startLoop = useCallback((t: BackingTrack, s: LoopSettings) => {
+    audio.start(t, { ...s, lick: lickOn ? guideLick(t, lickStyle) : null, leadTone });
+  }, [audio, lickOn, lickStyle, leadTone]);
+
+  // Lick on/off or a new style applies from the next bar while the loop plays.
+  const { playingId, update } = audio;
+  useEffect(() => {
+    if (playingId === track.id) update({ lick: lickOn ? lick : null });
+  }, [lickOn, lick, playingId, update, track.id]);
 
   // Deep links: /learn/backing#blues or /learn/backing#blues-03
   useEffect(() => {
@@ -88,12 +108,12 @@ export default function BackingTracksPage() {
     setTrackId(t.id);
     setSettings(next);
     setHash(t.id);
-    if (play) audio.start(t, next);
+    if (play) startLoop(t, next);
     else if (audio.playingId && audio.playingId !== t.id) audio.stop();
     if (window.matchMedia?.("(max-width: 899px)").matches) {
       requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
-  }, [audio, settings.drums, settings.bass, settings.countIn, bpmFor]);
+  }, [audio, settings.drums, settings.bass, settings.countIn, bpmFor, startLoop]);
 
   const toggle = (t: BackingTrack) => {
     if (audio.playingId === t.id) audio.stop();
@@ -161,10 +181,26 @@ export default function BackingTracksPage() {
             settings={settings}
             onSettings={changeSettings}
             onOpenMap={() => setMapOpen(true)}
+            onPlay={() => startLoop(track, settings)}
             scopeRef={scopeRef}
           />
+          <a href="#solo-guide" className="mt-2 block text-center text-sm text-muted underline decoration-line underline-offset-2 hover:text-ink" data-testid="backing-to-guide">
+            Solo guide: chord shapes, a lick and the live fretboard ↓
+          </a>
         </div>
       </div>
+
+      <SoloGuide
+        track={track}
+        genre={genre}
+        audio={audio}
+        lick={lick}
+        lickStyle={lickStyle}
+        onLickStyle={setLickStyle}
+        lickOn={lickOn}
+        onLickOn={setLickOn}
+        onPlay={() => startLoop(track, settings)}
+      />
 
       <p className="flex flex-wrap gap-2 pb-4">
         <Link href="/learn/theory?term=groove" className="btn btn-quiet btn-sm">Theory map: groove</Link>

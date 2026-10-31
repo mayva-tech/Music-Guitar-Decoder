@@ -33,14 +33,17 @@ vi.mock("tone", () => {
   };
 });
 
+const leadCalls: number[] = [];
 vi.mock("@/lib/audio/engine", () => ({
   loadTone: () => import("tone"),
   getEngine: () => ({ stop: vi.fn() }),
+  playLead: (_synth: unknown, midi: number) => { leadCalls.push(midi); },
 }));
 
 describe("backing tracks through the theory player", () => {
   beforeEach(() => {
     made.length = 0;
+    leadCalls.length = 0;
     vi.resetModules();
   });
 
@@ -59,6 +62,23 @@ describe("backing tracks through the theory player", () => {
       const drums = drumBar(t, 0, cycle);
       const rides = drums.filter((h) => h.voice === "ride").length; // ride = noise + ping
       expect(calls, t.id).toBe(drums.length + rides + bassBar(t, 0).length);
+      p.stop();
+    }
+  });
+
+  it("plays each bar's own lick notes on the lead voice", async () => {
+    const { getTheoryPlayer } = await import("@/lib/theory/player");
+    const { TRACKS, barSound } = await import("@/lib/music/backingTracks");
+    const { guideLick, lickBar } = await import("@/lib/music/backingSolo");
+    const t = TRACKS.find((x) => x.name === "Garage Eighths")!;
+    const lick = guideLick(t, "beat");
+    const p = getTheoryPlayer();
+    for (const bar of [0, 2]) {
+      leadCalls.length = 0;
+      const { notes } = lickBar(lick, bar, 4);
+      void p.play({ ...barSound(t, bar, { bpm: t.bpm }), lead: notes }, () => {});
+      await new Promise((r) => setTimeout(r, 0));
+      expect(leadCalls).toEqual(notes.map((n) => n.midi));
       p.stop();
     }
   });

@@ -2,14 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { clearHighlights, setHighlight } from "@/components/theory/highlight";
+import { lickBar } from "@/lib/music/backingSolo";
 import { barSound, countInSound, type BackingTrack } from "@/lib/music/backingTracks";
-import { getTheoryPlayer } from "@/lib/theory/player";
+import { getTheoryPlayer, type LeadSound } from "@/lib/theory/player";
+import type { PlayableNote } from "@/lib/types";
 
 export interface LoopSettings {
   bpm: number;
   drums: boolean;
   bass: boolean;
   countIn: boolean;
+  /** Lick to play on the lead voice along with the loop (null = backing only). */
+  lick?: PlayableNote[] | null;
+  leadTone?: "clean" | "crunch";
 }
 
 export interface BackingAudio {
@@ -20,6 +25,10 @@ export interface BackingAudio {
   /** How many times the loop has come round (0 on the first pass). */
   cycle: number;
   countingIn: boolean;
+  /** Beat of the bar sounding now (null while stopped). */
+  beat: number | null;
+  /** Index (in the lick) of the lick note sounding now. */
+  litNote: number | null;
   start(track: BackingTrack, settings: LoopSettings): void;
   stop(): void;
   /** Applies from the next bar. */
@@ -36,6 +45,8 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
   const [bar, setBar] = useState<number | null>(null);
   const [cycle, setCycle] = useState(0);
   const [countingIn, setCountingIn] = useState(false);
+  const [beat, setBeat] = useState<number | null>(null);
+  const [litNote, setLitNote] = useState<number | null>(null);
   const settings = useRef<LoopSettings>({ bpm: 100, drums: true, bass: true, countIn: true });
   const token = useRef(0);
 
@@ -47,6 +58,8 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
     setBar(null);
     setCycle(0);
     setCountingIn(false);
+    setBeat(null);
+    setLitNote(null);
   }, [scope]);
 
   useEffect(() => () => {
@@ -62,16 +75,30 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
     let pos = s.countIn ? -1 : 0; // -1 = the count-in bar
     const len = track.bars.length;
 
-    const soundAt = (p: number) => {
+    const soundAt = (p: number): LeadSound => {
       const cur = settings.current;
       if (p < 0) return countInSound(track, cur.bpm);
-      return barSound(track, p % len, { bpm: cur.bpm, drums: cur.drums, bass: cur.bass, cycle: Math.floor(p / len) });
+      const bar = p % len;
+      const s: LeadSound = barSound(track, bar, { bpm: cur.bpm, drums: cur.drums, bass: cur.bass, cycle: Math.floor(p / len) });
+      if (!cur.lick?.length) return s;
+      const { notes, first } = lickBar(cur.lick, bar, track.drums.beats);
+      if (!notes.length) return s;
+      const events = [...s.events];
+      notes.forEach((n, i) => events.push({ kind: "highlight", beat: n.start_beat, beats: n.duration_beats, velocity: 0, highlight: `ln_${first + i}` }));
+      return { ...s, events, lead: notes };
     };
 
     const onHighlight = (id: string, on: boolean) => {
       if (token.current !== my) return;
       setHighlight(scope.current, id, on);
+      if (id.startsWith("ln_")) {
+        const k = Number(id.slice(3));
+        if (on) setLitNote(k);
+        else setLitNote((cur) => (cur === k ? null : cur));
+        return;
+      }
       if (!on) return;
+      if (id.startsWith("beat_")) setBeat(Number(id.slice(5)));
       if (id.startsWith("count_")) {
         setCountingIn(true);
       } else if (id.startsWith("b_")) {
@@ -91,6 +118,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
     void getTheoryPlayer()
       .play(first, onHighlight, {
         loop: true,
+        leadTone: s.leadTone ?? "clean",
         nextExample: () => {
           pos += 1;
           if (pos >= 0 && pos % len === 0) {
@@ -106,6 +134,8 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
           setPlayingId(null);
           setBar(null);
           setCountingIn(false);
+          setBeat(null);
+          setLitNote(null);
         }
       });
   }, [scope]);
@@ -115,7 +145,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
   }, []);
 
   return useMemo(
-    () => ({ playingId, bar, cycle, countingIn, start, stop, update }),
-    [playingId, bar, cycle, countingIn, start, stop, update],
+    () => ({ playingId, bar, cycle, countingIn, beat, litNote, start, stop, update }),
+    [playingId, bar, cycle, countingIn, beat, litNote, start, stop, update],
   );
 }
