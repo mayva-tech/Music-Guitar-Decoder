@@ -869,3 +869,35 @@ export function loopSound(t: BackingTrack, opts: BarOptions): Sound {
 export function loopSeconds(t: BackingTrack, bpm = t.bpm): number {
   return (t.bars.length * t.drums.beats * 60) / bpm;
 }
+
+/* ------------------------------------------------------------- tempo steps */
+
+/**
+ * Standard metronome markings (the Maelzel scale printed on most metronomes): steps of 2 up to 60,
+ * 3 up to 72, 4 up to 120, 6 up to 144, 8 up to 240. The tempo arrows move between these.
+ */
+export const METRONOME_MARKS: number[] = (() => {
+  const out: number[] = [];
+  const run = (from: number, to: number, step: number) => { for (let b = from; b <= to; b += step) if (!out.includes(b)) out.push(b); };
+  run(40, 60, 2);
+  run(60, 72, 3);
+  run(72, 120, 4);
+  run(120, 144, 6);
+  run(144, 240, 8);
+  return out;
+})();
+
+/** Slowest and fastest tempo offered for a loop: half to one and a half times its own tempo, within 40–240. */
+export function tempoRange(t: Pick<BackingTrack, "bpm">): { min: number; max: number } {
+  return { min: Math.max(40, Math.round(t.bpm * 0.5)), max: Math.min(240, Math.round(t.bpm * 1.5)) };
+}
+
+/**
+ * The next metronome marking above (dir 1) or below (dir -1) `bpm`, kept inside `range`.
+ * Off-scale tempos (e.g. 98) snap to the nearest marking in that direction (100 or 96).
+ */
+export function tempoStep(bpm: number, dir: 1 | -1, range: { min: number; max: number }): number {
+  const next = dir > 0 ? METRONOME_MARKS.find((m) => m > bpm) : [...METRONOME_MARKS].reverse().find((m) => m < bpm);
+  const v = next ?? (dir > 0 ? range.max : range.min);
+  return Math.min(range.max, Math.max(range.min, v));
+}

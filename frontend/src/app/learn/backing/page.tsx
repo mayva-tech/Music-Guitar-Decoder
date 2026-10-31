@@ -12,7 +12,25 @@ import {
 } from "@/lib/music/backingTracks";
 import { BOX_MODES } from "@/lib/music/soloGuide";
 
-const DEFAULT_SETTINGS = (t: BackingTrack): LoopSettings => ({ bpm: t.bpm, drums: true, bass: true, countIn: true });
+const DEFAULT_SETTINGS = (t: BackingTrack, bpm = t.bpm): LoopSettings => ({ bpm, drums: true, bass: true, countIn: true });
+
+/** Each loop remembers the tempo you last set for it (this browser only). */
+const TEMPO_KEY = "md-backing-tempos";
+function loadTempos(): Record<string, number> {
+  try {
+    const raw = window.localStorage.getItem(TEMPO_KEY);
+    const v = raw ? (JSON.parse(raw) as unknown) : null;
+    if (!v || typeof v !== "object") return {};
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(
+      ([id, n]) => TRACKS_BY_ID[id] && typeof n === "number" && n >= 40 && n <= 240,
+    )) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+function saveTempos(t: Record<string, number>) {
+  try { window.localStorage.setItem(TEMPO_KEY, JSON.stringify(t)); } catch { /* ignore */ }
+}
 
 export default function BackingTracksPage() {
   const scopeRef = useRef<HTMLDivElement | null>(null);
@@ -23,6 +41,10 @@ export default function BackingTracksPage() {
   const [band, setBand] = useState<TempoBand | "all">("all");
   const [settings, setSettings] = useState<LoopSettings>(() => DEFAULT_SETTINGS(tracksFor("rock")[0]!));
   const [mapOpen, setMapOpen] = useState(false);
+  const [tempos, setTempos] = useState<Record<string, number>>({});
+  const temposRef = useRef(tempos);
+  temposRef.current = tempos;
+  const bpmFor = useCallback((t: BackingTrack) => tempos[t.id] ?? t.bpm, [tempos]);
 
   const genre = GENRES_BY_ID[genreId];
   const tracks = useMemo(() => tracksFor(genreId), [genreId]);
@@ -30,19 +52,15 @@ export default function BackingTracksPage() {
 
   // Deep links: /learn/backing#blues or /learn/backing#blues-03
   useEffect(() => {
+    const saved = loadTempos();
+    setTempos(saved);
+    temposRef.current = saved;
     const read = () => {
       const h = window.location.hash.slice(1);
-      if (TRACKS_BY_ID[h]) {
-        const t = TRACKS_BY_ID[h]!;
-        setGenreId(t.genre);
-        setTrackId(t.id);
-        setSettings(DEFAULT_SETTINGS(t));
-      } else if (GENRES_BY_ID[h as GenreId]) {
-        const g = h as GenreId;
-        setGenreId(g);
-        setTrackId(tracksFor(g)[0]!.id);
-        setSettings(DEFAULT_SETTINGS(tracksFor(g)[0]!));
-      }
+      const t = TRACKS_BY_ID[h] ?? (GENRES_BY_ID[h as GenreId] ? tracksFor(h as GenreId)[0]! : tracksFor("rock")[0]!);
+      setGenreId(t.genre);
+      setTrackId(t.id);
+      setSettings(DEFAULT_SETTINGS(t, temposRef.current[t.id] ?? t.bpm));
     };
     read();
     window.addEventListener("hashchange", read);
@@ -59,13 +77,13 @@ export default function BackingTracksPage() {
     const first = tracksFor(g)[0]!;
     setGenreId(g);
     setTrackId(first.id);
-    setSettings(DEFAULT_SETTINGS(first));
+    setSettings(DEFAULT_SETTINGS(first, bpmFor(first)));
     setBand("all");
     setHash(g);
   };
 
   const select = useCallback((t: BackingTrack, play = false) => {
-    const fresh = DEFAULT_SETTINGS(t);
+    const fresh = DEFAULT_SETTINGS(t, bpmFor(t));
     const next = { ...fresh, drums: settings.drums, bass: settings.bass, countIn: settings.countIn };
     setTrackId(t.id);
     setSettings(next);
@@ -75,16 +93,32 @@ export default function BackingTracksPage() {
     if (window.matchMedia?.("(max-width: 899px)").matches) {
       requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
-  }, [audio, settings.drums, settings.bass, settings.countIn]);
+  }, [audio, settings.drums, settings.bass, settings.countIn, bpmFor]);
 
   const toggle = (t: BackingTrack) => {
     if (audio.playingId === t.id) audio.stop();
     else select(t, true);
   };
 
+  /** Sets one loop's tempo: remembered for that loop, and live if it is the one selected or playing. */
+  const setTempo = (t: BackingTrack, bpm: number) => {
+    const next = { ...temposRef.current };
+    if (bpm === t.bpm) delete next[t.id];
+    else next[t.id] = bpm;
+    temposRef.current = next;
+    setTempos(next);
+    saveTempos(next);
+    if (t.id === track.id) setSettings((cur) => ({ ...cur, bpm }));
+    if (audio.playingId === t.id) audio.update({ bpm });
+  };
+
   const changeSettings = (s: Partial<LoopSettings>) => {
-    setSettings((cur) => ({ ...cur, ...s }));
-    audio.update(s);
+    if (s.bpm != null) setTempo(track, s.bpm);
+    const { bpm: _bpm, ...rest } = s;
+    if (Object.keys(rest).length) {
+      setSettings((cur) => ({ ...cur, ...rest }));
+      audio.update(rest);
+    }
   };
 
   const followChord = audio.playingId === track.id && audio.bar != null ? track.bars[audio.bar]!.split(" ")[0]! : null;
@@ -116,6 +150,8 @@ export default function BackingTracksPage() {
           onSelect={(t) => select(t)}
           onToggle={toggle}
           audio={audio}
+          bpmFor={bpmFor}
+          onBpm={setTempo}
         />
         <div ref={playerRef} className="bk-sticky scroll-mt-4 min-[900px]:self-start">
           <LoopPlayer

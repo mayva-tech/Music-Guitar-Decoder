@@ -5,7 +5,7 @@ import { useMemo, type RefObject } from "react";
 import { IconPlay, IconStop } from "@/components/Icons";
 import {
   DRUM_LABEL, DRUM_VOICES, FEEL_LABEL, LESSON_LINKS, GENRES, bassBar, chordsOf, drumBar, keyName, meterOf,
-  progressionText, scaleLabel, tempoBand, trackLessons, tracksFor,
+  progressionText, scaleLabel, tempoBand, tempoRange, tempoStep, trackLessons, tracksFor,
   type BackingTrack, type Genre, type GenreId, type LessonId, type TempoBand,
 } from "@/lib/music/backingTracks";
 import { pitchClassName } from "@/lib/music/theory";
@@ -88,6 +88,62 @@ export function GenreIntro({ genre }: { genre: Genre }) {
   );
 }
 
+/* ------------------------------------------------------------ tempo arrows */
+
+/**
+ * ▼ value ▲: steps the tempo to the previous / next standard metronome marking
+ * (…96, 100, 104, 108, 112, 116, 120, 126, 132…), within half to 1.5× the loop's own tempo.
+ */
+export function TempoArrows({
+  track, bpm, onChange, size = "sm", testId,
+}: {
+  track: BackingTrack;
+  bpm: number;
+  onChange: (bpm: number) => void;
+  size?: "sm" | "md";
+  testId: string;
+}) {
+  const range = tempoRange(track);
+  const down = tempoStep(bpm, -1, range);
+  const up = tempoStep(bpm, 1, range);
+  const changed = bpm !== track.bpm;
+  const btn = size === "md" ? "h-9 w-9 text-sm" : "h-7 w-7 text-[0.7rem]";
+  return (
+    <span className="flex shrink-0 items-center gap-0.5" role="group" aria-label={`Tempo for ${track.name}`}>
+      <button
+        type="button"
+        className={`grid ${btn} place-items-center rounded-full bg-panel-2 text-ink ring-1 ring-line hover:bg-line disabled:opacity-35`}
+        aria-label={`Slower: ${down} BPM`}
+        title={`Slower: ${down} BPM`}
+        disabled={bpm <= range.min}
+        data-testid={`${testId}-down`}
+        onClick={() => onChange(down)}
+      >
+        ▼
+      </button>
+      <span
+        className={`min-w-[2.6rem] text-center font-mono ${size === "md" ? "text-base" : "text-xs"} ${changed ? "text-next" : "text-ink"}`}
+        title={changed ? `Original tempo ${track.bpm} BPM` : undefined}
+        aria-live="polite"
+        data-testid={`${testId}-value`}
+      >
+        {bpm}
+      </span>
+      <button
+        type="button"
+        className={`grid ${btn} place-items-center rounded-full bg-panel-2 text-ink ring-1 ring-line hover:bg-line disabled:opacity-35`}
+        aria-label={`Faster: ${up} BPM`}
+        title={`Faster: ${up} BPM`}
+        disabled={bpm >= range.max}
+        data-testid={`${testId}-up`}
+        onClick={() => onChange(up)}
+      >
+        ▲
+      </button>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------ track list */
 
 const BANDS: { id: TempoBand | "all"; label: string }[] = [
@@ -98,7 +154,7 @@ const BANDS: { id: TempoBand | "all"; label: string }[] = [
 ];
 
 export function TrackList({
-  genre, tracks, selectedId, band, onBand, onSelect, onToggle, audio,
+  genre, tracks, selectedId, band, onBand, onSelect, onToggle, audio, bpmFor, onBpm,
 }: {
   genre: Genre;
   tracks: BackingTrack[];
@@ -108,6 +164,9 @@ export function TrackList({
   onSelect: (t: BackingTrack) => void;
   onToggle: (t: BackingTrack) => void;
   audio: BackingAudio;
+  /** This loop's current tempo (its own, or what the user set). */
+  bpmFor: (t: BackingTrack) => number;
+  onBpm: (t: BackingTrack, bpm: number) => void;
 }) {
   const shown = band === "all" ? tracks : tracks.filter((t) => tempoBand(t.bpm) === band);
   return (
@@ -155,10 +214,15 @@ export function TrackList({
                   <span className="truncate text-sm font-bold">{t.name}</span>
                 </span>
                 <span className="truncate text-xs text-muted">
-                  <span className="font-mono text-ink">{t.bpm}</span> BPM · {keyName(t)} · {FEEL_LABEL[t.drums.feel]}
+                  {keyName(t)} · {FEEL_LABEL[t.drums.feel]}
                   {meterOf(t) === "3/4" ? " · 3/4" : ""} · {t.bars.length} bars
+                  {bpmFor(t) !== t.bpm ? <span className="text-faint"> · orig. {t.bpm}</span> : null}
                 </span>
               </button>
+              <span className="flex shrink-0 flex-col items-center">
+                <TempoArrows track={t} bpm={bpmFor(t)} onChange={(v) => onBpm(t, v)} testId={`backing-row-bpm-${t.id}`} />
+                <span className="text-[0.6rem] uppercase tracking-wide text-faint">BPM</span>
+              </span>
             </li>
           );
         })}
@@ -254,8 +318,7 @@ export function LoopPlayer({
   const bar = playing && audio.bar != null ? audio.bar : 0;
   const chordNow = track.bars[bar]!;
   const chordNext = track.bars[(bar + 1) % len]!;
-  const minBpm = Math.max(40, Math.round(track.bpm * 0.5));
-  const maxBpm = Math.min(240, Math.round(track.bpm * 1.5));
+  const { min: minBpm, max: maxBpm } = tempoRange(track);
   const lessons = useMemo(() => trackLessons(track), [track]);
 
   return (
@@ -328,8 +391,9 @@ export function LoopPlayer({
             className="min-w-0 flex-1"
             onChange={(e) => onSettings({ bpm: Number(e.target.value) })}
           />
-          <span className="w-16 text-right font-mono text-ink" data-testid="backing-bpm-value">{settings.bpm} BPM</span>
         </label>
+        <TempoArrows track={track} bpm={settings.bpm} onChange={(v) => onSettings({ bpm: v })} size="md" testId="backing-bpm" />
+        <span className="-ml-2 text-xs text-muted">BPM</span>
         {settings.bpm !== track.bpm && (
           <button type="button" className="btn btn-quiet btn-sm" onClick={() => onSettings({ bpm: track.bpm })} data-testid="backing-bpm-reset">
             Reset to {track.bpm}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASS, DRUMS, GENRES, LESSON_LINKS, TRACKS, TRACKS_BY_ID,
   barSound, bassBar, chordsOf, countInSound, drumBar, isFourChordPop, keyName, loopSound, stepBeat,
-  tempoBand, trackLessons, tracksFor, type BackingTrack,
+  METRONOME_MARKS, tempoBand, tempoRange, tempoStep, trackLessons, tracksFor, type BackingTrack,
 } from "@/lib/music/backingTracks";
 import { parseChord } from "@/lib/music/chordSymbol";
 import { LESSONS } from "@/lib/music/lessons";
@@ -263,5 +263,42 @@ describe("lesson links", () => {
     expect(keyName({ root: "G", mode: "major-pentatonic" })).toBe("G major");
     expect(keyName({ root: "E", mode: "blues" })).toBe("E blues");
     expect(keyName({ root: "D", mode: "dorian" })).toBe("D Dorian");
+  });
+});
+
+describe("tempo arrows", () => {
+  it("step through the standard metronome markings", () => {
+    expect(METRONOME_MARKS.slice(0, 4)).toEqual([40, 42, 44, 46]);
+    expect(METRONOME_MARKS).toEqual(expect.arrayContaining([60, 63, 66, 69, 72, 76, 80, 120, 126, 132, 138, 144, 152, 208, 240]));
+    const wide = { min: 40, max: 240 };
+    expect(tempoStep(92, 1, wide)).toBe(96);
+    expect(tempoStep(92, -1, wide)).toBe(88);
+    expect(tempoStep(120, 1, wide)).toBe(126);
+    expect(tempoStep(126, -1, wide)).toBe(120);
+    expect(tempoStep(60, 1, wide)).toBe(63);
+    expect(tempoStep(144, 1, wide)).toBe(152);
+  });
+
+  it("snap an off-scale tempo to the nearest marking in that direction", () => {
+    const wide = { min: 40, max: 240 };
+    expect(tempoStep(98, 1, wide)).toBe(100);
+    expect(tempoStep(98, -1, wide)).toBe(96);
+    expect(tempoStep(212, -1, wide)).toBe(208);
+  });
+
+  it("stay inside half to one and a half times the loop's tempo", () => {
+    const t = TRACKS.find((x) => x.bpm === 100)!;
+    const r = tempoRange(t);
+    expect(r).toEqual({ min: 50, max: 150 });
+    expect(tempoStep(150, 1, r)).toBe(150);
+    expect(tempoStep(50, -1, r)).toBe(50);
+    expect(tempoStep(148, 1, r)).toBe(150);
+    for (const x of TRACKS) {
+      const rr = tempoRange(x);
+      expect(rr.min).toBeGreaterThanOrEqual(40);
+      expect(rr.max).toBeLessThanOrEqual(240);
+      expect(tempoStep(x.bpm, 1, rr)).toBeGreaterThan(x.bpm);
+      expect(tempoStep(x.bpm, -1, rr)).toBeLessThan(x.bpm);
+    }
   });
 });

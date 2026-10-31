@@ -33,7 +33,7 @@ test.describe("Backing tracks", () => {
     await page.goto("/learn/backing#pop-02");
     await expect(page.getByTestId("backing-player-title")).toHaveText("Dancefloor Lights");
     await page.getByTestId("backing-bpm").fill("180");
-    await expect(page.getByTestId("backing-bpm-value")).toHaveText("180 BPM");
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("180");
     await expect(page.getByTestId("backing-chord")).toHaveText("Am");
 
     await page.getByTestId("backing-toggle").click();
@@ -69,6 +69,31 @@ test.describe("Backing tracks", () => {
 
     await page.getByTestId("backing-track-lessons").getByTestId("lesson-link-solo-target").click();
     await expect(page).toHaveURL(/\/learn\/solo#target/);
+  });
+
+  test("tempo arrows step by metronome markings, per loop, and are remembered", async ({ page }) => {
+    await page.goto("/learn/backing#pop-02"); // Dancefloor Lights, 124 BPM
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("124");
+    await page.getByTestId("backing-bpm-up").click();
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("126");
+    await page.getByTestId("backing-bpm-down").click(); // 126 -> 120 (marks go 116, 120, 126)
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("120");
+    // The row shows the same tempo, and another row changes only its own loop.
+    await expect(page.getByTestId("backing-row-bpm-pop-02-value")).toHaveText("120");
+    await page.getByTestId("backing-row-bpm-pop-01-up").click(); // 112 -> 116
+    await expect(page.getByTestId("backing-row-bpm-pop-01-value")).toHaveText("116");
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("120");
+    // Selecting that loop picks up its own tempo.
+    await page.getByTestId("backing-track-pop-01").click();
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("116");
+    // Remembered after a reload; Reset goes back to the original.
+    await page.reload();
+    await page.getByTestId("backing-genre-pop").click();
+    await expect(page.getByTestId("backing-row-bpm-pop-02-value")).toHaveText("120");
+    await page.getByTestId("backing-track-pop-02").click();
+    await page.getByTestId("backing-bpm-reset").click();
+    await expect(page.getByTestId("backing-bpm-value")).toHaveText("124");
+    await expect(page.getByTestId("backing-row-bpm-pop-02-value")).toHaveText("124");
   });
 
   test("no horizontal page scroll at 390px", async ({ page }) => {

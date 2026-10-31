@@ -101,6 +101,7 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
 * The bass follows the chords: roots, fifths, octaves, boogie and walking lines with half-step approaches into the next chord.
 * The last bar of each pass has a genre fill; rock, pop, metal and punk crash on the repeat.
 * Play loops bar by bar, so tempo (50–150% of the original) and the drums / bass / count-in switches apply from the next bar.
+* ▼/▲ tempo arrows on every loop (in the list and the player) step through standard metronome markings (…96, 100, 104 … 116, 120, 126, 132 … 144, 152, 160…). Each loop remembers its own tempo in this browser; *Reset* returns to the original.
 * A drum grid lights each step as it plays, with the bass notes of the current bar underneath.
 * Every genre and every loop links to the matching lessons: Lead solos, the pentatonic box, CAGED, Progress lessons (`/progress?lesson=…`), Theory map terms, Play by ear steps, riffs (`/riffs?genre=…`, `?source=modern`) and Guitar greats.
 * "Show … on fretboard" opens the fretboard map in the loop's key and scale, with chord-tone pills that follow the playing chord.
