@@ -16,19 +16,22 @@ export function LickTab({
   barsPerRow = 4,
   className = "",
   litNotes,
+  perBarGrid = false,
 }: {
   notes: PlayableNote[];
   beatsPerBar?: number;
   barsPerRow?: number;
   className?: string;
   litNotes?: ReadonlySet<number>;
+  /** Give each bar its own grid (long lines mixing triplets and sixteenths stay readable). */
+  perBarGrid?: boolean;
 }) {
   const rows = useMemo(() => {
     if (!notes.length) return [];
     const idxById = new Map(notes.map((n, i) => [n.id, i] as const));
     const lastBeat = Math.max(...notes.map((n) => n.start_beat + n.duration_beats));
     const bars = Math.max(1, Math.ceil(lastBeat / beatsPerBar - 1e-9), Math.floor(Math.max(...notes.map((n) => n.start_beat)) / beatsPerBar) + 1);
-    const lay = layoutTab(notes, beatsPerBar, bars);
+    const lay = layoutTab(notes, beatsPerBar, bars, { perBar: perBarGrid });
 
     // Full-width character grid + token positions per string.
     const grid: Record<number, string[]> = {};
@@ -68,7 +71,7 @@ export function LickTab({
       );
     }
     return out;
-  }, [notes, beatsPerBar, barsPerRow]);
+  }, [notes, beatsPerBar, barsPerRow, perBarGrid]);
 
   return (
     <div

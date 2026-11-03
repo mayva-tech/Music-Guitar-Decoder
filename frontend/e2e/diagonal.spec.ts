@@ -85,13 +85,13 @@ test.describe("Diagonal licks", () => {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/learn/diagonal");
     const chooser = page.getByTestId("dg-chooser");
-    await expect(chooser.locator('[data-testid^="dg-pick-"]')).toHaveCount(16);
+    await expect(chooser.locator('[data-testid^="dg-pick-"]')).toHaveCount(26);
     await expect(page.getByTestId("dg-set-2").locator('[data-testid^="dg-pick-"]')).toHaveCount(10);
 
     await page.getByTestId("dg-level-Harder").click();
     const harder = await chooser.locator('[data-testid^="dg-pick-"]').count();
     expect(harder).toBeGreaterThan(0);
-    expect(harder).toBeLessThan(16);
+    expect(harder).toBeLessThan(26);
     await page.getByTestId("dg-level-all").click();
 
     const practice = page.getByTestId("dg-practice");
@@ -110,6 +110,29 @@ test.describe("Diagonal licks", () => {
     await practice.getByTestId("dg-play").click();
     await expect(practice.locator(".solo-hl.is-on").first()).toBeAttached({ timeout: 4000 });
     await practice.getByTestId("dg-play").click();
+    expect(errors).toEqual([]);
+  });
+  test("set 3: every new lick opens, and the flamenco and bluegrass licks play", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/learn/diagonal");
+    await expect(page.getByTestId("dg-set-3").locator('[data-testid^="dg-pick-"]')).toHaveCount(10);
+    const practice = page.getByTestId("dg-practice");
+    const ids = ["dg-swing-street", "dg-flamenco", "dg-lydian-sky", "dg-surf-wave", "dg-rooftop",
+      "dg-bluegrass", "dg-sunday-best", "dg-rain-city", "dg-clockwork", "dg-bike-lights"];
+    for (const id of ids) {
+      await page.getByTestId(`dg-pick-${id}`).click();
+      await expect(practice).toHaveAttribute("data-lick", id);
+      await expect(practice.getByTestId("lick-route")).toBeAttached();
+      await expect(practice.getByTestId("lick-tab")).toBeVisible();
+    }
+    for (const id of ["dg-flamenco", "dg-bluegrass"]) {
+      await page.getByTestId(`dg-pick-${id}`).click();
+      await practice.getByTestId("dg-part-0").click();
+      await practice.getByTestId("dg-play").click();
+      await expect(practice.locator(".solo-hl.is-on").first()).toBeAttached({ timeout: 4000 });
+      await practice.getByTestId("dg-play").click();
+    }
     expect(errors).toEqual([]);
   });
 });

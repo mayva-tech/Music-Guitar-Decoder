@@ -4,9 +4,10 @@ import { useState } from "react";
 import { fretSpan, lickSeconds, type DiagonalLick } from "@/lib/music/diagonalLicks";
 import { keyOfLabel, scaleModeKeyLabel, type ScaleMode } from "@/lib/music/scaleFretmap";
 
-const SETS: { set: 1 | 2; title: string; note: string }[] = [
+const SETS: { set: DiagonalLick["set"]; title: string; note: string }[] = [
   { set: 1, title: "Set 1", note: "Pentatonic and blues: start here" },
   { set: 2, title: "Set 2", note: "New styles and seven-note scales" },
+  { set: 3, title: "Set 3", note: "Jazz, flamenco, modes and chromatic notes" },
 ];
 
 type LevelFilter = "all" | DiagonalLick["level"];

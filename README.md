@@ -83,7 +83,7 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
 
 ## Diagonal licks
 
-**Diagonal licks** (`/learn/diagonal`) has sixteen original 20-second licks in two sets that travel across the neck
+**Diagonal licks** (`/learn/diagonal`) has 26 original 20-second licks in three sets that travel across the neck
 instead of running up and down one box. Each is shaped like a short solo: a **theme** (melody), the theme moved up (or down)
 a position, a **speed phrase** built from repeating cells (groups of three, descending fours, a sextuplet burst),
 and a peak that comes home to a chord tone.
@@ -114,7 +114,28 @@ and a peak that comes home to a chord tone.
 | Skyline | Pop-punk | F major pent., 150 BPM | frets 5 → 20 | triplets |
 | Midnight blues | Slow blues | C blues, 60 BPM | frets 8 → 20 | sextuplets |
 
-The lick chooser groups the licks by set and filters them by level (Medium / Harder). Set 2 added the chords
+**Set 3** (jazz, flamenco, modes and chromatic notes):
+
+| Lick | Style | Key, tempo | Route | Fastest notes |
+|---|---|---|---|---|
+| Swing street | Jazz swing (ii – V – I – VI) | C major, 96 BPM | frets 7 → 19 | swung triplets |
+| Flamenco fire | Flamenco (Am – G – F – E) | E Phrygian, 108 BPM | open → 19 | sixteenth picado |
+| Lydian sky | Cinematic | F Lydian, 86 BPM | frets 5 → 19 | sextuplets |
+| Surf wave | Surf rock (tremolo picking) | D minor, 140 BPM | frets 5 → 18 | tremolo triplets |
+| Rooftop skank | Reggae (off-beat phrasing) | E minor, 74 BPM | frets 7 → 17 | sixteenths |
+| Bluegrass breakdown | Bluegrass (the G run) | G major pent., 120 BPM | open → 19 | triplets |
+| Sunday best | Gospel soul | C major pent., 72 BPM | frets 5 → 17 | sextuplets |
+| Rain city | Grunge | B minor pent., 108 BPM | frets 7 → 19 | sixteenths |
+| Clockwork | Neoclassical shred | A harmonic minor, 96 BPM | frets 4 → 19 | sextuplets (fastest: 9.6 notes/s) |
+| Bike lights | Indie rock | D major, 112 BPM | open → 19 | sixteenths |
+
+Set 3 added accidentals to the lick notation (`3^` / `3_` = a scale degree raised / lowered a semitone) for
+chromatic notes: the bluegrass A#→B, flamenco's G# over E, C# over A in D minor, the gospel E♭→E, jazz passing
+notes. The practice TAB uses `layoutTab(…, { perBar: true })`, which gives each bar its own grid, so lines that
+mix triplets and sixteenths stay narrow (Flamenco fire: 1,372 → 400 characters). The default layout is unchanged
+and still matches the backend.
+
+The lick chooser groups the licks by set (1–3) and filters them by level (Medium / Harder). Set 2 added the chords
 A, E, Bm, B7, B♭ and F7 to the solo backing (`SOLO_VOICINGS`, `SOLO_BASS`, `CHORD_TONES`) and a full C7 voicing
 (x32313; the theory map's x32310 has no 5th).
 

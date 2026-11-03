@@ -49,7 +49,7 @@ export default function DiagonalLicksPage() {
           <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: "var(--lane-song)" }}>Speed with a melody</p>
           <h1 className="display text-[2rem] md:text-[2.6rem]">Diagonal licks</h1>
           <p className="mt-2 text-[1.05rem] leading-relaxed text-muted">
-            Sixteen 20-second licks that travel across the neck instead of up and down one box. Each one is a small solo with a tune:
+            Twenty-six 20-second licks that travel across the neck instead of up and down one box. Each one is a small solo with a tune:
             a theme, the theme moved up the neck, a fast phrase, then a peak that comes home. Learn the melody first, then build the speed.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -83,8 +83,8 @@ export default function DiagonalLicksPage() {
       </section>
 
       <section aria-labelledby="dg-licks-heading" className="space-y-4">
-        <SectionHead id="dg-licks-heading" eyebrow="Lick library" title="Sixteen licks, 20 seconds each">
-          Set 1 stays in pentatonic and blues scales (rock, blues, country, hard rock, a ballad, pop). Set 2 adds funk, southern rock, metal, Latin, Celtic, neo-soul, rockabilly, fusion, pop-punk and slow blues, with Dorian, Mixolydian, major, minor and harmonic-minor lines. Each plays with drums, bass and chords. All are original, written for this app.
+        <SectionHead id="dg-licks-heading" eyebrow="Lick library" title="Twenty-six licks, 20 seconds each">
+          Set 1 stays in pentatonic and blues scales (rock, blues, country, hard rock, a ballad, pop). Set 2 adds funk, southern rock, metal, Latin, Celtic, neo-soul, rockabilly, fusion, pop-punk and slow blues, with Dorian, Mixolydian, major, minor and harmonic-minor lines. Set 3 adds jazz, flamenco, a Lydian film cue, surf, reggae, bluegrass, gospel, grunge, neoclassical and indie, with chromatic passing notes. Each plays with drums, bass and chords. All are original, written for this app.
         </SectionHead>
         <LickChooser licks={DIAGONAL_LICKS} selected={dl.lick.id} onSelect={select} />
       </section>

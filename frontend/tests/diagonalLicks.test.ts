@@ -21,10 +21,13 @@ import {
   tempoAt,
 } from "@/lib/music/diagonalLicks";
 import { SOLO_BASS, SOLO_VOICINGS, chordTonesOf } from "@/lib/music/soloGuide";
+import { rootPc, scaleKindPcs } from "@/lib/music/scaleFretmap";
+import { layoutTab } from "@/lib/music/tab";
 
 describe("diagonal licks: content", () => {
-  it("has sixteen licks (six in set 1, ten in set 2) with unique ids, all looked up by id", () => {
-    expect(DIAGONAL_LICKS).toHaveLength(16);
+  it("has 26 licks (6 in set 1, 10 in set 2, 10 in set 3) with unique ids, all looked up by id", () => {
+    expect(DIAGONAL_LICKS).toHaveLength(26);
+    expect(DIAGONAL_LICKS.filter((d) => d.set === 3)).toHaveLength(10);
     expect(DIAGONAL_LICKS.filter((d) => d.set === 1)).toHaveLength(6);
     expect(DIAGONAL_LICKS.filter((d) => d.set === 2)).toHaveLength(10);
     const ids = DIAGONAL_LICKS.map((d) => d.lick.id);
@@ -142,10 +145,25 @@ describe("diagonal licks: content", () => {
     }
   });
 
-  it("reports note speed: Iron gate's sixteenths at 132 BPM are the fastest", () => {
+  it("set 3 adds Phrygian and Lydian, and uses chromatic notes outside the scale", () => {
+    const set3 = DIAGONAL_LICKS.filter((d) => d.set === 3);
+    const modes = new Set(set3.map((d) => d.lick.mode));
+    expect(modes.has("phrygian")).toBe(true);
+    expect(modes.has("lydian")).toBe(true);
+    const outside = (id: string) => {
+      const d = DIAGONAL_BY_ID[id]!;
+      const pcs = scaleKindPcs(rootPc(d.lick.root), d.lick.mode);
+      return d.lick.notes.filter((n) => !pcs.includes(n.midi % 12)).map((n) => n.name);
+    };
+    expect(outside("dg-bluegrass")).toContain("A#3"); // the G run: A# hammered to B
+    expect(outside("dg-flamenco")).toContain("G#3"); // E major's 3rd over the Phrygian E chord
+    expect(outside("dg-surf-wave")).toContain("C#4"); // A's 3rd in D minor
+  });
+
+  it("reports note speed: Clockwork's sextuplets at 96 BPM are the fastest", () => {
     const fastest = DIAGONAL_LICKS.reduce((a, b) => (notesPerSecond(b) > notesPerSecond(a) ? b : a));
-    expect(fastest.lick.id).toBe("dg-iron-gate");
-    expect(notesPerSecond(fastest)).toBe(8.8);
+    expect(fastest.lick.id).toBe("dg-clockwork");
+    expect(notesPerSecond(fastest)).toBe(9.6);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-night-drive"]!)).toBe(8);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-staircase"]!)).toBe(4.8);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-staircase"]!, 50)).toBe(2.4);
@@ -232,8 +250,37 @@ describe("diagonal licks: notation", () => {
     expect(c.beats).toBe(4);
   });
 
+  it("accidentals: ^ raises and _ lowers a scale degree by a semitone", () => {
+    const c = compileLine("t", "@5 1^:1 2_:1 0:2", scale);
+    // A minor pentatonic degree 1 = C4 (60) → C#4; degree 2 = D4 (62) → C#4 (61); degree 0 = A3.
+    expect(c.specs).toHaveLength(3);
+    const midis = c.specs.map((x) => STANDARD_TUNING[x.s]! + x.f);
+    expect(midis).toEqual([61, 61, 57]);
+    expect(() => compileLine("t", "@5 1^^:1", scale)).toThrow(/bad token/);
+  });
+
   it("rejects a bar line off the beat and a hammer-on that goes down", () => {
     expect(() => compileLine("t", "@5 0:1 | 1:1", scale)).toThrow(/bar line/);
     expect(() => compileLine("t", "@5 2:1 1h:1", scale)).toThrow(/hammer-on/);
+  });
+});
+
+describe("diagonal licks: TAB with a per-bar grid", () => {
+  it("keeps the default layout unchanged and places every note in time order, much narrower", () => {
+    for (const d of DIAGONAL_LICKS) {
+      const ns = d.lick.notes;
+      const bars = lickBeats(d) / 4;
+      const plain = layoutTab(ns, 4, bars);
+      const compact = layoutTab(ns, 4, bars, { perBar: true });
+      expect(compact.lineLength, d.lick.id).toBeLessThanOrEqual(plain.lineLength);
+      expect(compact.barLineCols, d.lick.id).toHaveLength(bars);
+      const colOf = new Map(compact.cells.flatMap((c) => c.notes.map((n) => [n.id, c.col] as const)));
+      expect(colOf.size, d.lick.id).toBe(ns.length);
+      for (let i = 1; i < ns.length; i++) {
+        if (ns[i]!.start_beat > ns[i - 1]!.start_beat) expect(colOf.get(ns[i]!.id)!, ns[i]!.id).toBeGreaterThan(colOf.get(ns[i - 1]!.id)!);
+      }
+    }
+    const fl = DIAGONAL_BY_ID["dg-flamenco"]!;
+    expect(layoutTab(fl.lick.notes, 4, 9, { perBar: true }).lineLength).toBeLessThan(layoutTab(fl.lick.notes, 4, 9).lineLength / 3);
   });
 });

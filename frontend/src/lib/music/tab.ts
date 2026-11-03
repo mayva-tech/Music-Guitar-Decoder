@@ -52,18 +52,35 @@ export function gridResolution(notes: { start_beat: number }[]): number {
   return 4;
 }
 
-export function layoutTab(notes: TabInput[], beatsPerBar = 4, totalBars?: number): TabLayout {
-  const res = gridResolution(notes);
+/**
+ * `perBar`: each bar gets the coarsest grid its own notes need (frontend-only option, off by default so
+ * the layout stays identical to the backend). Long lines that mix triplets and sixteenths otherwise put
+ * every bar on a 12-per-beat grid and become several times wider than needed.
+ */
+export function layoutTab(notes: TabInput[], beatsPerBar = 4, totalBars?: number, opts: { perBar?: boolean } = {}): TabLayout {
   const bars = totalBars ?? Math.max(1, Math.floor(Math.max(0, ...notes.map((n) => n.start_beat)) / beatsPerBar) + 1);
+  const whole = gridResolution(notes);
+  const barRes = Array.from({ length: bars }, (_, b) => {
+    if (!opts.perBar) return whole;
+    const own = notes.filter((n) => n.start_beat >= b * beatsPerBar - 1e-9 && n.start_beat < (b + 1) * beatsPerBar - 1e-9);
+    return own.length ? gridResolution(own) : 1;
+  });
+  const res = Math.max(...barRes);
   const cellsPerBar = beatsPerBar * res;
-  const nCells = bars * cellsPerBar;
-  const cells: TabCell[] = Array.from({ length: nCells }, (_, i) => ({
-    index: i, bar: Math.floor(i / cellsPerBar), beat: i / res, width: 1, col: 0, notes: [],
-  }));
+  const firstCell: number[] = [];
+  const cells: TabCell[] = [];
+  barRes.forEach((r, b) => {
+    firstCell.push(cells.length);
+    for (let k = 0; k < beatsPerBar * r; k++) {
+      cells.push({ index: cells.length, bar: b, beat: b * beatsPerBar + k / r, width: 1, col: 0, notes: [] });
+    }
+  });
   for (const n of notes) {
     if (n.string < 1 || n.string > 6 || n.fret < 0) throw new RangeError(`Invalid TAB position ${n.string}/${n.fret}`);
-    const c = Math.round(n.start_beat * res);
-    if (c >= nCells) throw new RangeError(`Note at beat ${n.start_beat} is outside ${bars} bars`);
+    const b = Math.floor(n.start_beat / beatsPerBar + 1e-9);
+    if (b >= bars) throw new RangeError(`Note at beat ${n.start_beat} is outside ${bars} bars`);
+    const r = barRes[b]!;
+    const c = firstCell[b]! + Math.round((n.start_beat - b * beatsPerBar) * r);
     if (cells[c].notes.some((x) => x.string === n.string)) throw new Error(`Two notes on string ${n.string} at beat ${n.start_beat}`);
     const token = noteToken(n);
     cells[c].notes.push({ id: n.id, string: n.string, fret: n.fret, token });
@@ -72,8 +89,8 @@ export function layoutTab(notes: TabInput[], beatsPerBar = 4, totalBars?: number
   let col = 2; // after "e|"
   const barLineCols: number[] = [];
   for (let b = 0; b < bars; b++) {
-    for (let k = 0; k < cellsPerBar; k++) {
-      const cell = cells[b * cellsPerBar + k];
+    for (let k = 0; k < beatsPerBar * barRes[b]!; k++) {
+      const cell = cells[firstCell[b]! + k];
       col += 2;
       cell.col = col;
       col += cell.width;

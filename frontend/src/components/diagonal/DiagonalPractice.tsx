@@ -229,7 +229,7 @@ export function DiagonalPractice({
 
       <div>
         <h3 className="mb-1 text-sm font-bold">TAB</h3>
-        <LickTab notes={lick.notes} barsPerRow={4} />
+        <LickTab notes={lick.notes} barsPerRow={4} perBarGrid />
       </div>
     </section>
   );
