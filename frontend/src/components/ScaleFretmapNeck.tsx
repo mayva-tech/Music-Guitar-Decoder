@@ -37,8 +37,11 @@ interface Props {
   box?: number;
   /** Ring the tones of this chord (maple); dashed marker for tones outside the scale. */
   chordTones?: string | null;
-  /** Draws a lick on the neck (numbered markers + technique glyphs; `compact` = markers only). */
-  lick?: { notes: PlayableNote[]; compact?: boolean } | null;
+  /**
+   * Draws a lick on the neck (numbered markers + technique glyphs; `compact` = markers only).
+   * `route` draws the path the notes take across the neck; `accent` rings these note indices (melody notes).
+   */
+  lick?: { notes: PlayableNote[]; compact?: boolean; route?: boolean; accent?: ReadonlySet<number> } | null;
   /** Indices of lick notes sounding now (alternatively toggle `.is-on` on `[data-hl="n<i>"]`). */
   litNotes?: ReadonlySet<number>;
   /** Crop to a fret range (small card diagrams); string letters move to a left gutter. */
@@ -125,19 +128,29 @@ export function ScaleFretmapNeck({
   }, [chordTones, root, mode, box, frets, nearFret]);
 
   const overlay = useMemo(() => (lickNotes ? lickOverlay(lickNotes) : null), [lickNotes]);
+  const route = !!lick?.route;
+  const accent = lick?.accent;
 
   const at = (s: number, f: number) => (f === 0 ? lay.openMarker(s) : lay.note(s, f));
 
-  // Headroom above string 1 for bend arrows / hammer arcs.
-  const pad = useMemo(() => {
-    if (!overlay || compact) return 0;
-    let p = 0;
-    for (const g of overlay.glyphs) {
-      if (g.kind === "bend" || g.kind === "bend_release") p = Math.max(p, 58);
-      else if (g.kind === "hammer_on" || g.kind === "pull_off") p = Math.max(p, 36);
+  /** Polyline through the notes in play order (repeated positions collapsed). */
+  const routePath = useMemo(() => {
+    if (!route || !lickNotes) return null;
+    const pts: { x: number; y: number }[] = [];
+    let last = "";
+    for (const n of [...lickNotes].sort((x, y) => x.start_beat - y.start_beat || y.string - x.string)) {
+      const key = `${n.string}:${n.fret}`;
+      if (key === last) continue;
+      last = key;
+      pts.push(n.fret === 0 ? lay.openMarker(n.string) : lay.note(n.string, n.fret));
     }
-    return p;
-  }, [overlay, compact]);
+    return pts.length > 1 ? pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") : null;
+  }, [route, lickNotes, lay]);
+
+  // Headroom above string 1 for bend arrows / hammer arcs.
+  // Keep a fixed pad whenever a lick is shown so the viewBox (and the neck)
+  // does not jump up/down as bars switch between plain notes and bends.
+  const pad = overlay && !compact ? 58 : 0;
 
   // Crop geometry for card diagrams.
   const crop = useMemo(() => {
@@ -320,6 +333,11 @@ export function ScaleFretmapNeck({
       )}
 
       {/* Lick layer */}
+      {routePath && (
+        <path d={routePath} data-testid="lick-route" fill="none" stroke="var(--color-next)" strokeOpacity="0.7"
+          strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="1 6" />
+      )}
+
       {overlay && (
         <g data-testid="lick-layer">
           {!compact && overlay.glyphs.map((g, gi) => (
@@ -330,7 +348,11 @@ export function ScaleFretmapNeck({
             const { fill, ink } = noteMarkerColors(m.name);
             return (
               <g key={`m-${m.string}-${m.fret}`} transform={`translate(${p.x} ${p.y})`}
-                data-lick-marker={`${m.string}:${m.fret}`} data-note={m.name}>
+                data-lick-marker={`${m.string}:${m.fret}`} data-note={m.name}
+                data-melody={accent && m.noteIndices.some((i) => accent.has(i)) ? "true" : undefined}>
+                {accent && m.noteIndices.some((i) => accent.has(i)) && (
+                  <circle r={17.5} fill="none" stroke="var(--color-ink)" strokeWidth="2" strokeOpacity="0.85" />
+                )}
                 {m.noteIndices.map((ni, k) => (
                   <g key={ni} className={`solo-hl${litNotes?.has(ni) ? " is-on" : ""}`} data-hl={`n${ni}`}>
                     <circle className="solo-ring" r={19} fill="none" stroke="var(--color-maple)" strokeWidth="3.5" />

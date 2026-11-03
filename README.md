@@ -81,6 +81,34 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
   and leaving the page stops everything.
 - Tests: `tests/soloNeck.test.ts` (neck layers), `tests/soloPlayer.test.ts` (lead line, loop), `e2e/solo.spec.ts`.
 
+## Diagonal licks
+
+**Diagonal licks** (`/learn/diagonal`) has six original 20-second licks that travel across the neck instead of
+running up and down one box. Each is shaped like a short solo: a **theme** (melody), the theme moved up (or down)
+a position, a **speed phrase** built from repeating cells (groups of three, descending fours, a sextuplet burst),
+and a peak that comes home to a chord tone.
+
+| Lick | Style | Key, tempo | Route | Fastest notes |
+|---|---|---|---|---|
+| Staircase | Rock | A minor pent., 96 BPM | frets 5 → 17 | eighth-note triplets |
+| Blues ladder | Blues shuffle | A blues, 96 BPM | frets 5 → 17 → 12 | swung triplets |
+| Downhill | Country / pop | G major pent., 120 BPM | frets 15 → open | triplets |
+| Night drive | Hard rock | E minor pent., 120 BPM | frets 7 → 17 → open | sixteenths |
+| Slow burn | Rock ballad | D minor pent., 72 BPM | frets 10 → 20 | sextuplets |
+| Pop glide | Pop | C major pent., 100 BPM | frets 5 → 17 | triplets |
+
+- **Practice station:** the neck shows the lick's route (dotted line) and rings the melody notes; notes and TAB
+  light as they sound. Practise the whole lick or loop one phrase; **Melody only** plays just the theme.
+- **Speed trainer:** tempo 50–120 % (presets 60–110 %), loop, **speed up 5 % each loop** (to 110 %), one-bar
+  count-in, and a live status line (loop number, %, BPM, notes per second).
+- **Pick it note by note** reuses the Guitar greats picker (tap the neck or play into the microphone).
+- Licks are written in a small notation of scale degrees, rhythms and hand positions (`compileLine` in
+  `frontend/src/lib/music/diagonalLicks.ts`); the compiler picks strings and frets inside the hand position.
+- Tests check every lick lasts 19–21 s, starts every bar on a chord tone, never runs more than four notes straight
+  up or down the scale, crosses at least 10 frets with phrases in different positions, and has no fast 5-fret jump
+  without a slide: `tests/diagonalLicks.test.ts`, `tests/diagonalNeck.test.ts`, `e2e/diagonal.spec.ts`.
+- `ScaleFretmapNeck` gained optional `lick.route` and `lick.accent`; other callers render as before.
+
 ## Backing tracks
 
 **Backing tracks** (`/learn/backing`) has 200 drum and bass loops to play guitar over: 10 genres × 20 loops, each at its own tempo.
@@ -107,7 +135,7 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
 * "Show … on fretboard" opens the fretboard map in the loop's key and scale, with chord-tone pills that follow the playing chord.
 * Deep links: `/learn/backing#blues` (a genre) or `/learn/backing#blues-03` (a loop).
 * **Solo guide** (below the player) for every loop:
-  * a tall live fretboard zoomed to the solo position (pentatonic box 1, or a five-fret window for seven-note scales; *Whole neck* zooms out). The current chord's tones are ringed (tones outside the scale dashed) and jump to the next chord one beat before it arrives;
+  * a tall live fretboard zoomed to the solo position (pentatonic box 1, or a five-fret window for seven-note scales; *Whole neck* zooms out). The current chord's tones are ringed (tones outside the scale dashed); while the loop plays the neck shows only the lick note sounding now;
   * a chord-change timeline with a playhead and a "G in 3 beats" countdown; tap a bar while stopped to preview it;
   * a suggested lick written over the loop's own chords (*Long notes*, *On the beat*, *Phrased*): it lands on a chord tone at each change and steps into the next chord, is drawn on the neck bar by bar with numbered notes and TAB, and can play on the lead voice with the loop;
   * chord boxes for every chord in the loop with ◀ ▶ arrows through its voicings, low to high (open, E-, A- and D-form shapes, including 7th, 9th, 6th and m7♭5 chords); *On neck* shows the shape with fingers on the big fretboard.

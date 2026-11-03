@@ -13,6 +13,7 @@ export const NAV = [
   { href: "/learn", label: "Guitar learning", short: "Learn", Icon: IconGuitar },
   { href: "/learn/theory", label: "Theory map", short: "Theory", Icon: IconWave },
   { href: "/learn/solo", label: "Lead solos", short: "Solos", Icon: IconRiff },
+  { href: "/learn/diagonal", label: "Diagonal licks", short: "Diagonal", Icon: IconRiff },
   { href: "/learn/greats", label: "Guitar greats", short: "Greats", Icon: IconGuitar },
   { href: "/learn/backing", label: "Backing tracks", short: "Backing", Icon: IconDrum },
   { href: "/learn/find", label: "Find", short: "Find", Icon: IconLibrary },
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           !path.startsWith("/learn/theory") &&
           !path.startsWith("/learn/by-ear") &&
           !path.startsWith("/learn/solo") &&
+          !path.startsWith("/learn/diagonal") &&
           !path.startsWith("/learn/greats") &&
           !path.startsWith("/learn/backing") &&
           !path.startsWith("/learn/find"))

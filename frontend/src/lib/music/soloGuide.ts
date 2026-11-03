@@ -194,7 +194,8 @@ export function lickOverlay(notes: PlayableNote[]): { markers: LickMarker[]; gly
     const key = `${n.string}-${n.fret}`;
     const m = byPos.get(key);
     if (m) m.noteIndices.push(i);
-    else byPos.set(key, { string: n.string, fret: n.fret, name: pitchClassName(STANDARD_TUNING[n.string] + n.fret), noteIndices: [i], order: i + 1 });
+    // Name from midi so a bend's label matches the pitch you hear (midi is the bent-to note).
+    else byPos.set(key, { string: n.string, fret: n.fret, name: pitchClassName(n.midi), noteIndices: [i], order: i + 1 });
     const prev = prevOn[n.string];
     if ((n.technique === "slide_up" || n.technique === "slide_down") && n.slide_from_fret != null)
       glyphs.push({ kind: "slide", dir: n.technique === "slide_up" ? "up" : "down", string: n.string, fromFret: n.slide_from_fret, toFret: n.fret, noteIndex: i });

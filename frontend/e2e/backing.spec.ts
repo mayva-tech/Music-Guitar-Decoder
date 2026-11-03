@@ -126,7 +126,7 @@ test.describe("Backing tracks", () => {
     await guide.getByTestId("guide-toggle").click();
     await expect(guide.getByTestId("guide-toggle")).toHaveAttribute("aria-pressed", "true");
     await expect(guide.locator(".solo-hl.is-on").first()).toBeAttached({ timeout: 4000 });
-    await expect(guide.getByTestId("guide-countdown")).toContainText(/in \d beats?|aim for/);
+    await expect(guide.getByTestId("guide-countdown")).toContainText(/in \d beats?/);
     await expect(guide.locator('[data-testid="chord-tone-layer"]')).toHaveAttribute("data-chord", "G", { timeout: 6000 });
     await guide.getByTestId("guide-toggle").click();
     await expect(guide.getByTestId("guide-toggle")).toHaveAttribute("aria-pressed", "false");

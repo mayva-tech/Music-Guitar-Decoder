@@ -66,6 +66,11 @@ export default function LeadSoloPage() {
       <section id="licks" aria-labelledby="solo-licks-heading" className="scroll-mt-4 space-y-4" data-testid="solo-licks">
         <SectionHead id="solo-licks-heading" eyebrow="Lick library" title="Eight licks to steal">
           Short phrases that work over common chords. Play one, then change a note or two to make it yours.
+          {" "}Ready for longer lines that cross the neck?{" "}
+          <Link href="/learn/diagonal" className="underline decoration-line underline-offset-2 hover:text-ink" data-testid="solo-diagonal-link">
+            Diagonal licks
+          </Link>{" "}
+          has six 20-second licks with a speed trainer.
         </SectionHead>
         <div className="grid grid-cols-1 gap-3 min-[760px]:grid-cols-2 min-[900px]:grid-cols-3">
           {LICKS.map((l) => (
@@ -81,6 +86,7 @@ export default function LeadSoloPage() {
       <p className="flex flex-wrap gap-2 pb-4">
         <Link href="/learn/theory" className="btn btn-quiet btn-sm">Theory map</Link>
         <Link href="/learn/by-ear" className="btn btn-quiet btn-sm">Play by ear</Link>
+        <Link href="/learn/diagonal" className="btn btn-quiet btn-sm">Diagonal licks</Link>
         <Link href="/learn" className="btn btn-quiet btn-sm">Back to Guitar learning</Link>
       </p>
 

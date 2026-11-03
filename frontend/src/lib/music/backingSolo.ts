@@ -228,15 +228,26 @@ export function guideLick(t: BackingTrack, style: LickStyle): PlayableNote[] {
   const chords = segs.map((s) => parseChord(s.chord)!);
 
   const tonesOf = (c: ParsedChord, guide: boolean): number[] => {
-    const guidePcs = [c.third, c.seventh].filter((x): x is number => x != null).map((x) => (c.root + x) % 12);
-    const pick = (pcs: number[]) => L.map((p, i) => (pcs.includes(p.midi % 12) ? i : -1)).filter((i) => i > 0 && i < n - 1);
-    const g = guide ? pick(guidePcs) : [];
-    if (g.length) return g;
+    // Prefer notes inside the position; fall back to the edges if that is all the chord has here.
+    const pick = (pcs: number[]) => {
+      const all = L.map((p, i) => (pcs.includes(p.midi % 12) ? i : -1)).filter((i) => i >= 0);
+      const mid = all.filter((i) => i > 0 && i < n - 1);
+      return mid.length ? mid : all;
+    };
+    if (guide) {
+      // Guide tones (3rd / 7th) first — they define the chord quality.
+      const guidePcs = [c.third, c.seventh].filter((x): x is number => x != null).map((x) => (c.root + x) % 12);
+      const g = pick(guidePcs);
+      if (g.length) return g;
+      // Otherwise land on the root so the held note matches the chord name on screen.
+      const roots = pick([c.root]);
+      if (roots.length) return roots;
+    }
     const all = pick(c.pcs);
     if (all.length) return all;
     // No chord tone in this position: the scale note nearest the chord's root.
-    let best = 1;
-    for (let i = 1; i < n - 1; i++) {
+    let best = Math.min(1, n - 1);
+    for (let i = 0; i < n; i++) {
       const d = (pc: number) => Math.min((pc - c.root + 12) % 12, (c.root - pc + 12) % 12);
       if (d(L[i]!.midi % 12) < d(L[best]!.midi % 12)) best = i;
     }

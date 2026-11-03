@@ -99,6 +99,18 @@ describe("suggested lick", () => {
     expect(hits / segs).toBeGreaterThan(0.97);
   });
 
+  it("Garage Eighths long notes: fretted pitch equals midi, and G bars start on the root G", () => {
+    const t = TRACKS.find((x) => x.name === "Garage Eighths")!;
+    const lick = guideLick(t, "long");
+    for (const n of lick) expect(STANDARD_TUNING[n.string]! + n.fret).toBe(n.midi);
+    // Bar 2 and bar 4 are G — with no guide tone in the box, long notes land on the root.
+    for (const bar of [1, 3]) {
+      const { notes } = lickBar(lick, bar, 4);
+      expect(notes[0]!.midi % 12).toBe(7); // G
+      expect(notes[0]!.name.startsWith("G")).toBe(true);
+    }
+  });
+
   it("swings the off-beats on shuffles and moves by small steps", () => {
     const shuffle = TRACKS.find((t) => t.name === "12-Bar Shuffle in A")!;
     const phr = guideLick(shuffle, "phrase");

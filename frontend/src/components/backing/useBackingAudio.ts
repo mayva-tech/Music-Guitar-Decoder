@@ -29,6 +29,12 @@ export interface BackingAudio {
   beat: number | null;
   /** Index (in the lick) of the lick note sounding now. */
   litNote: number | null;
+  /**
+   * The lick that was scheduled for the bar currently sounding (snapshot).
+   * Keep the neck/TAB on this while playing so a mid-bar style change cannot
+   * show different notes from the ones you hear until the next bar.
+   */
+  soundingLick: PlayableNote[] | null;
   start(track: BackingTrack, settings: LoopSettings): void;
   stop(): void;
   /** Applies from the next bar. */
@@ -47,8 +53,11 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
   const [countingIn, setCountingIn] = useState(false);
   const [beat, setBeat] = useState<number | null>(null);
   const [litNote, setLitNote] = useState<number | null>(null);
+  const [soundingLick, setSoundingLick] = useState<PlayableNote[] | null>(null);
   const settings = useRef<LoopSettings>({ bpm: 100, drums: true, bass: true, countIn: true });
   const token = useRef(0);
+  /** Lick baked into the bar that is about to sound / is sounding. */
+  const scheduledLick = useRef<PlayableNote[] | null>(null);
 
   const stop = useCallback(() => {
     token.current += 1;
@@ -60,6 +69,8 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
     setCountingIn(false);
     setBeat(null);
     setLitNote(null);
+    setSoundingLick(null);
+    scheduledLick.current = null;
   }, [scope]);
 
   useEffect(() => () => {
@@ -77,11 +88,17 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
 
     const soundAt = (p: number): LeadSound => {
       const cur = settings.current;
-      if (p < 0) return countInSound(track, cur.bpm);
+      if (p < 0) {
+        scheduledLick.current = null;
+        return countInSound(track, cur.bpm);
+      }
       const bar = p % len;
       const s: LeadSound = barSound(track, bar, { bpm: cur.bpm, drums: cur.drums, bass: cur.bass, cycle: Math.floor(p / len) });
-      if (!cur.lick?.length) return s;
-      const { notes, first } = lickBar(cur.lick, bar, track.drums.beats);
+      // Snapshot the lick for this bar so the neck cannot drift from what we schedule to hear.
+      const lickSnap = cur.lick?.length ? cur.lick : null;
+      scheduledLick.current = lickSnap;
+      if (!lickSnap) return s;
+      const { notes, first } = lickBar(lickSnap, bar, track.drums.beats);
       if (!notes.length) return s;
       const events = [...s.events];
       notes.forEach((n, i) => events.push({ kind: "highlight", beat: n.start_beat, beats: n.duration_beats, velocity: 0, highlight: `ln_${first + i}` }));
@@ -106,6 +123,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
         if (Number.isFinite(n)) {
           setCountingIn(false);
           setBar(n);
+          setSoundingLick(scheduledLick.current);
         }
       }
     };
@@ -114,6 +132,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
     setBar(null);
     setCycle(0);
     setCountingIn(s.countIn);
+    setSoundingLick(null);
     const first = soundAt(pos);
     void getTheoryPlayer()
       .play(first, onHighlight, {
@@ -136,6 +155,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
           setCountingIn(false);
           setBeat(null);
           setLitNote(null);
+          setSoundingLick(null);
         }
       });
   }, [scope]);
@@ -145,7 +165,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
   }, []);
 
   return useMemo(
-    () => ({ playingId, bar, cycle, countingIn, beat, litNote, start, stop, update }),
-    [playingId, bar, cycle, countingIn, beat, litNote, start, stop, update],
+    () => ({ playingId, bar, cycle, countingIn, beat, litNote, soundingLick, start, stop, update }),
+    [playingId, bar, cycle, countingIn, beat, litNote, soundingLick, start, stop, update],
   );
 }
