@@ -114,7 +114,7 @@ function SongSearch() {
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(r.song.title); submit(undefined, r.song.title); }}
                   className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left ${i === active ? "bg-panel-2" : ""}`}>
                   <span><span className="font-bold">{r.song.title}</span> <span className="text-sm text-muted">· {r.song.credit}</span></span>
-                  <span className="chip text-xs">{keyShort(r.song.key)} · chords</span>
+                  <span className="chip text-xs">Key: {keyShort(r.song.key)} · chords</span>
                 </button>
               </li>
             ))}

@@ -58,6 +58,7 @@ export default function LearnPage() {
   const [tabMode, setTabMode] = useState<"beginner" | "standard">("standard");
   const [tempo, setTempo] = useState(1);
   const [countIn, setCountIn] = useState(true);
+  const [loop, setLoop] = useState(false);
   const [tracks, setTracks] = useState<TrackToggles>({ melody: false, solo: true, lead: false, backing: true, bass: true, drums: true });
   const [phrase, setPhrase] = useState<{ from: number; to: number } | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -73,6 +74,8 @@ export default function LearnPage() {
   const [fretmapOpen, setFretmapOpen] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
+  const loopRef = useRef(false);
+  const stopRequested = useRef(false);
 
   const notes: PlayableNote[] = useMemo(() => (arr ? partNotes(arr, part) : []), [arr, part]);
   const range = phrase ?? { from: 0, to: notes.length - 1 };
@@ -286,22 +289,34 @@ export default function LearnPage() {
     setTracks((t) => ({ ...t, melody: true, solo: false, lead: false }));
   }, [riffId]);
 
+  useEffect(() => {
+    loopRef.current = loop;
+  }, [loop]);
+
   // ---------------------------------------------------------------- transport
   const stopAll = useCallback(() => {
+    stopRequested.current = true;
     setWatching(false);
     cancelAnimationFrame(raf.current);
     getEngine().stop();
     setPlaying(false);
   }, []);
 
-  const startPlayback = async (opts: { practice?: boolean } = {}) => {
+  const startPlayback = async (opts: { practice?: boolean; loopPass?: boolean } = {}) => {
     if (!arr) return;
-    stopAll();
+    stopRequested.current = false;
+    // Soft stop without marking a user cancel, so a loop pass can restart cleanly.
+    setWatching(false);
+    cancelAnimationFrame(raf.current);
+    getEngine().stop();
+    if (!opts.loopPass) setPlaying(false);
     const fromBeat = notes[range.from]?.start_beat ?? 0;
     const lastNote = notes[range.to];
     const barEnd = lastNote ? Math.ceil((lastNote.start_beat + lastNote.duration_beats) / arr.beats_per_bar - 1e-9) * arr.beats_per_bar : undefined;
+    // Count-in on the first pass only — looping the count-in every time gets in the way.
+    const wantCountIn = !opts.loopPass && (countIn || !!opts.practice);
     const sched = buildSchedule(arr, {
-      tempoFactor: tempo, countInBeats: countIn || opts.practice ? arr.beats_per_bar : 0, part,
+      tempoFactor: tempo, countInBeats: wantCountIn ? arr.beats_per_bar : 0, part,
       fromBeat: phrase ? Math.floor(fromBeat / arr.beats_per_bar) * arr.beats_per_bar : 0, toBeat: phrase ? barEnd : undefined,
     });
     const ids = new Map(notes.map((n, i) => [n.id, i]));
@@ -313,16 +328,22 @@ export default function LearnPage() {
     }
     setPlaying(true);
     await getEngine().play(sched, tracks, () => {
-      setPlaying(false);
       cancelAnimationFrame(raf.current);
       if (opts.practice && L.scorer) {
+        setPlaying(false);
         const res: BandNoteResult[] = L.scorer.results();
         void finishSession("play_with_band", res.map((r) => ({
           event_id: r.id, expected_midi: r.midi, detected_midi: r.detectedMidi, correct: r.correct, timing_offset_ms: r.timingOffsetMs, string: r.string, fret: r.fret,
         })), true);
         L.scorer = null;
         setMode(null);
+        return;
       }
+      if (!stopRequested.current && loopRef.current && !opts.practice) {
+        void startPlayback({ ...opts, loopPass: true });
+        return;
+      }
+      setPlaying(false);
     });
     const tick = () => {
       const eng = getEngine();
@@ -564,7 +585,7 @@ export default function LearnPage() {
           </p>
           <h1 className="display text-[1.55rem] md:text-[1.9rem] leading-tight">{arr.title}</h1>
           <p className="mt-0.5 text-sm text-muted">
-            {arr.key.name}, {Math.round(arr.tempo_bpm * tempo)} BPM, {arr.total_bars} bars · {arr.harmonization.label}
+            Key: {arr.key.name} · {Math.round(arr.tempo_bpm * tempo)} BPM · {arr.total_bars} bars · {arr.harmonization.label}
           </p>
         </div>
         <div className="flex gap-1 rounded-full bg-panel p-1" role="tablist" aria-label="Part to learn">
@@ -646,7 +667,10 @@ export default function LearnPage() {
                 {playing ? <IconStop width={16} /> : <IconPlay width={16} />} {playing ? "Stop" : "Play"}
               </button>
               <label className="flex items-center gap-1.5 text-xs text-muted">
-                <input type="checkbox" checked={countIn} onChange={(e) => setCountIn(e.target.checked)} /> Count-in
+                <input type="checkbox" checked={countIn} onChange={(e) => setCountIn(e.target.checked)} data-testid="count-in-toggle" /> Count-in
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-muted" title="Repeat the part or selected bar until you stop">
+                <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} data-testid="loop-toggle" /> Loop
               </label>
               <label className="ml-auto flex items-center gap-1.5 text-xs text-muted tabular-nums">
                 {Math.round(tempo * 100)}%
@@ -664,9 +688,9 @@ export default function LearnPage() {
               </div>
             </fieldset>
             <div className="mt-2 flex shrink-0 flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-muted">Loop</span>
-              <button className={`chip text-[0.7rem] py-0.5 ${!phrase ? "bg-maple text-tolex" : ""}`} onClick={() => setPhrase(null)}>Whole part</button>
-              <button className={`chip text-[0.7rem] py-0.5 ${phrase ? "bg-maple text-tolex" : ""}`} onClick={() => {
+              <span className="text-muted">Section</span>
+              <button className={`chip text-[0.7rem] py-0.5 ${!phrase ? "bg-maple text-tolex" : ""}`} onClick={() => setPhrase(null)} data-testid="section-whole">Whole part</button>
+              <button className={`chip text-[0.7rem] py-0.5 ${phrase ? "bg-maple text-tolex" : ""}`} data-testid="section-bar" onClick={() => {
                 const b = Math.floor((cur?.start_beat ?? 0) / bpb);
                 const ids = notes.map((n, i) => ({ n, i })).filter(({ n }) => Math.floor(n.start_beat / bpb) === b).map(({ i }) => i);
                 if (ids.length) { setPhrase({ from: ids[0], to: ids[ids.length - 1] }); setIndex(ids[0]); }

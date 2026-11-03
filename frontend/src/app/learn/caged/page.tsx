@@ -152,6 +152,8 @@ export default function CagedPage() {
         </div>
 
         <p className="mt-3 text-sm text-muted" data-testid="caged-key-line">
+          <strong className="text-ink">Key: {key.name}</strong>
+          {" · "}
           <strong className="text-ink">{key.name} pentatonic</strong> · {scale.join(" · ")} ·{" "}
           same notes as <strong className="text-ink">{key.partner.replace("#", "♯")}</strong>
           {mode === "minor" && <> · chord shapes are {nice(key.majorPc)} major, the relative major</>}

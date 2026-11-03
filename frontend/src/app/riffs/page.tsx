@@ -110,7 +110,7 @@ export default function RiffsPage() {
               <span className="chip shrink-0" title={`${r.bars} bars, ${r.note_count} notes`}>{LEVEL_LABEL[r.difficulty]}</span>
             </div>
             <p className="mt-3 text-sm text-muted">
-              {GENRE_LABEL[r.genre]}, {r.key_name}, {Math.round(r.tempo_bpm)} BPM, {r.bars} bars
+              {GENRE_LABEL[r.genre]} · Key: {r.key_name} · {Math.round(r.tempo_bpm)} BPM · {r.bars} bars
             </p>
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="What it practises">
               {r.focus.map((f) => <li key={f} className="chip">{f}</li>)}

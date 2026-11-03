@@ -80,7 +80,7 @@ export default function LibraryPage() {
                 <>
                   <h2 className="text-lg font-bold truncate">{s.title}</h2>
                   <p className="text-sm text-muted">
-                    {s.key}, {Math.round(s.tempo_bpm)} BPM, {s.total_bars} bars. {s.harmonization} chords, {LEVEL[s.skill_level]}.{" "}
+                    Key: {s.key} · {Math.round(s.tempo_bpm)} BPM · {s.total_bars} bars. {s.harmonization} chords, {LEVEL[s.skill_level]}.{" "}
                     {s.source === "demo" ? "Demo tune." : ""} Made {new Date(s.created_at).toLocaleDateString()}.
                   </p>
                 </>

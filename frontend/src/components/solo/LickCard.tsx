@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyChip } from "@/components/KeyChip";
 import { LickNeck, mapRequestForLick, type ShowMap } from "./shared";
 import { LickTab } from "./LickTab";
 import type { SoloAudio } from "./useSoloAudio";
@@ -12,6 +13,7 @@ export function LickCard({ lick, audio, onShowMap }: { lick: Lick; audio: SoloAu
     <article className="surface flex min-w-0 flex-col gap-3 p-4" data-hl-scope={lick.id} data-testid={`lick-card-${lick.id}`}>
       <div>
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          <KeyChip root={lick.root} mode={lick.mode} />
           {lick.tags.map((t) => <span key={t} className="chip text-xs">{t}</span>)}
           <span className="chip text-xs" title="Backing chords">over {over}</span>
         </div>

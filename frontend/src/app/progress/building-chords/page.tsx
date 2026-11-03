@@ -112,12 +112,13 @@ export default function BuildingChordsPage() {
             data-testid={`key-tab-${k.id}`}
             onClick={() => setKeyId(k.id)}
           >
-            {k.name}
+            Key: {k.name}
           </button>
         ))}
       </div>
 
       <div className="grid gap-4" role="tabpanel" aria-label={guide.name}>
+        <p className="text-sm font-semibold text-ink" data-testid="key-guide-label">Key: {guide.name}</p>
         <ScaleLadder guide={guide} />
         <ChordBuildDemo guide={guide} />
         <KeyFamilyBoard guide={guide} />

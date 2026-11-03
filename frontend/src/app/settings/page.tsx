@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageTitle } from "@/components/AppShell";
 import { Fretboard } from "@/components/Fretboard";
+import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { normalizeLeadTone } from "@/lib/audio/leadTone";
 import { useApp, useHydrated } from "@/lib/store";
 import type { InstructionMode, MarkerLabel, SkillLevel, Style, TechniquesMode, ViewMode } from "@/lib/types";
 
@@ -63,6 +65,14 @@ export default function SettingsPage() {
         <Row label="Lead solo techniques" hint="Slides, hammer-ons, pull-offs, bends and vibrato.">
           <Segmented<TechniquesMode> name="Lead solo techniques" value={prefs.techniques} onChange={(v) => setPrefs({ techniques: v })}
             options={[["auto", "Match my level"], ["none", "Plain notes"], ["slides", "Slides & legato"], ["all", "Everything"]]} />
+        </Row>
+        <Row label="Lead tone" hint="Amp sound for licks and guided solos on Solo, Diagonal, Greats, and Backing.">
+          <LeadToneSelector
+            value={normalizeLeadTone(prefs.leadTone)}
+            onChange={(t) => setPrefs({ leadTone: t })}
+            testId="settings-lead-tone"
+            hint={false}
+          />
         </Row>
         <Row label="Hand on the fretboard" hint="A see-through hand shows where every finger sits.">
           <div className="flex flex-wrap items-center gap-3">

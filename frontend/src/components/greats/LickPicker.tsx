@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EarFretNeck, type NeckMark } from "@/components/ear/EarFretNeck";
 import { IconMic, IconPlay, IconStop } from "@/components/Icons";
+import { KeyChip } from "@/components/KeyChip";
 import { getEngine } from "@/lib/audio/engine";
 import { articulation } from "@/lib/audio/timeline";
 import { useMicPitch, type LiveFrame } from "@/lib/audio/useMicPitch";
@@ -117,6 +118,7 @@ export function LickPicker({ item, colour, playing, onPlay, onClose }: {
         <div>
           <p className="text-xs uppercase tracking-wide text-muted">Pick it, note by note</p>
           <h3 className="display text-xl">{lick.title}</h3>
+          <div className="mt-1"><KeyChip root={lick.root} mode={lick.mode} /></div>
         </div>
         <button type="button" className="btn btn-quiet btn-sm" onClick={onClose} data-testid="greats-picker-close">Close</button>
       </div>

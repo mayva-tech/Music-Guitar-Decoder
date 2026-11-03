@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { KeyChip } from "@/components/KeyChip";
 import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
 import { BarTimeline, SectionHead } from "./shared";
 import type { SoloAudio } from "./useSoloAudio";
@@ -10,10 +11,12 @@ import { pitchClassName } from "@/lib/music/theory";
 
 const SCOPE = "target";
 const WINDOW = { from: 3, to: 9 };
+const TARGET_ROOT = "A" as const;
+const TARGET_MODE = "minor-pentatonic" as const;
 
 export function ChordTargeting({ audio }: { audio: SoloAudio }) {
   const [chord, setChord] = useState<string | null>("Am");
-  const cells = useMemo(() => buildFretmap("A", "minor-pentatonic"), []);
+  const cells = useMemo(() => buildFretmap(TARGET_ROOT, TARGET_MODE), []);
   const bars = TARGET_PROGRESSION.map(([c]) => c);
   const tones = chord ? CHORD_TONES[chord].map((pc) => pitchClassName(pc + 60)) : [];
   const items = [
@@ -76,9 +79,10 @@ export function ChordTargeting({ audio }: { audio: SoloAudio }) {
           <BarTimeline bars={bars} activeLabel="Four bars: Am, G, F, G" />
         </div>
         <div className="surface min-w-0 p-3">
-          <ScaleFretmapNeck cells={cells} root="A" mode="minor-pentatonic" box={1} chordTones={chord} fretWindow={WINDOW} />
+          <div className="mb-2"><KeyChip root={TARGET_ROOT} mode={TARGET_MODE} /></div>
+          <ScaleFretmapNeck cells={cells} root={TARGET_ROOT} mode={TARGET_MODE} box={1} chordTones={chord} fretWindow={WINDOW} />
           <p className="mt-2 text-xs text-muted">
-            A minor pentatonic, box 1, frets 3–9. Ringed = a chord tone you can land on. Dashed = a chord tone outside the scale.
+            Box 1, frets 3–9. Ringed = a chord tone you can land on. Dashed = a chord tone outside the scale.
           </p>
         </div>
       </div>

@@ -106,12 +106,13 @@ export default function PentatonicBoxPage() {
             data-testid={`penta-tab-${g.id}`}
             onClick={() => setGuideId(g.id)}
           >
-            {g.root} minor
+            Key: {g.root} minor
           </button>
         ))}
       </div>
 
       <div className="grid gap-4" role="tabpanel" aria-label={guide.name}>
+        <p className="text-sm font-semibold text-ink" data-testid="penta-key-label">Key: {guide.root} minor</p>
         <p className="text-sm text-muted">{guide.tip}</p>
         <PentatonicBuildSteps guide={guide} />
         <section className="surface p-5">

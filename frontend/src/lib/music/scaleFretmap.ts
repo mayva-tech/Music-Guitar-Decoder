@@ -93,6 +93,47 @@ export function scaleDisplayName(root: ScaleRoot, mode: ScaleMode): string {
   return `${root} ${kind.label}`;
 }
 
+const MAJORISH: ScaleMode[] = ["major", "major-pentatonic", "lydian", "mixolydian"];
+
+/** Compact scale wording for key labels: "minor pentatonic", "Dorian", "blues"… */
+export function scaleModeKeyLabel(mode: ScaleMode): string {
+  return {
+    major: "major",
+    minor: "minor",
+    "major-pentatonic": "major pentatonic",
+    "minor-pentatonic": "minor pentatonic",
+    blues: "blues",
+    "harmonic-minor": "harmonic minor",
+    "melodic-minor": "melodic minor",
+    dorian: "Dorian",
+    mixolydian: "Mixolydian",
+    phrygian: "Phrygian",
+    lydian: "Lydian",
+    locrian: "Locrian",
+  }[mode];
+}
+
+/**
+ * Tonal key from root + mode: "A minor", "D major", "E blues", "D Dorian".
+ * Pentatonics collapse to major/minor; named modes keep their name.
+ */
+export function tonalKeyName(root: ScaleRoot, mode: ScaleMode): string {
+  if (mode === "blues") return `${root} blues`;
+  if (
+    mode === "dorian" || mode === "mixolydian" || mode === "phrygian"
+    || mode === "lydian" || mode === "locrian"
+    || mode === "harmonic-minor" || mode === "melodic-minor"
+  ) {
+    return `${root} ${scaleModeKeyLabel(mode)}`;
+  }
+  return `${root} ${MAJORISH.includes(mode) ? "major" : "minor"}`;
+}
+
+/** UI label: "Key: A minor". */
+export function keyOfLabel(root: ScaleRoot, mode: ScaleMode): string {
+  return `Key: ${tonalKeyName(root, mode)}`;
+}
+
 /**
  * One solid fill per pitch-class name so every C (or F#, …) matches across the neck.
  * Chosen for contrast on rosewood.

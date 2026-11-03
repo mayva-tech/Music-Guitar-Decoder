@@ -23,8 +23,10 @@ import {
 import { SOLO_BASS, SOLO_VOICINGS, chordTonesOf } from "@/lib/music/soloGuide";
 
 describe("diagonal licks: content", () => {
-  it("has six licks with unique ids, all looked up by id", () => {
-    expect(DIAGONAL_LICKS).toHaveLength(6);
+  it("has sixteen licks (six in set 1, ten in set 2) with unique ids, all looked up by id", () => {
+    expect(DIAGONAL_LICKS).toHaveLength(16);
+    expect(DIAGONAL_LICKS.filter((d) => d.set === 1)).toHaveLength(6);
+    expect(DIAGONAL_LICKS.filter((d) => d.set === 2)).toHaveLength(10);
     const ids = DIAGONAL_LICKS.map((d) => d.lick.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(DIAGONAL_BY_ID[id]!.lick.id).toBe(id);
@@ -125,7 +127,25 @@ describe("diagonal licks: content", () => {
     }
   });
 
-  it("reports note speed: Night drive's sixteenths are the fastest at 120 BPM", () => {
+  it("set 2 covers new styles and scales: no two licks share genre, and seven-note scales are used", () => {
+    const set2 = DIAGONAL_LICKS.filter((d) => d.set === 2);
+    const genres = DIAGONAL_LICKS.map((d) => d.genre);
+    expect(new Set(genres).size).toBe(genres.length);
+    const modes = new Set(set2.map((d) => d.lick.mode));
+    for (const m of ["dorian", "mixolydian", "harmonic-minor", "major", "minor"]) expect(modes.has(m as never), m).toBe(true);
+  });
+
+  it("every lick's bars are 4 beats and its tempo lands the lick in 19-21 s at 100%", () => {
+    for (const d of DIAGONAL_LICKS) {
+      expect(lickBeats(d) % 4, d.lick.id).toBe(0);
+      expect(Math.max(...d.lick.notes.map((n) => n.start_beat + n.duration_beats)), d.lick.id).toBeLessThanOrEqual(lickBeats(d) + 1e-9);
+    }
+  });
+
+  it("reports note speed: Iron gate's sixteenths at 132 BPM are the fastest", () => {
+    const fastest = DIAGONAL_LICKS.reduce((a, b) => (notesPerSecond(b) > notesPerSecond(a) ? b : a));
+    expect(fastest.lick.id).toBe("dg-iron-gate");
+    expect(notesPerSecond(fastest)).toBe(8.8);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-night-drive"]!)).toBe(8);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-staircase"]!)).toBe(4.8);
     expect(notesPerSecond(DIAGONAL_BY_ID["dg-staircase"]!, 50)).toBe(2.4);

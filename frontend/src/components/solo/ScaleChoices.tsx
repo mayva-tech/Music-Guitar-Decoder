@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyChip } from "@/components/KeyChip";
 import { SectionHead, type ShowMap } from "./shared";
 import { scaleDisplayName } from "@/lib/music/scaleFretmap";
 import { SCALE_CHOICES } from "@/lib/music/soloGuide";
@@ -23,7 +24,10 @@ export function ScaleChoices({ onShowMap }: { onShowMap: ShowMap }) {
             role="row"
             className="grid gap-1 py-3 min-[900px]:grid-cols-[1.2fr_1.1fr_1.4fr_auto] min-[900px]:items-center min-[900px]:gap-4"
           >
-            <span role="cell" className="text-sm font-semibold">{c.song}</span>
+            <span role="cell" className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+              {c.song}
+              <KeyChip root={c.root} mode={c.mode} className="chip text-[0.65rem] font-normal" />
+            </span>
             <span role="cell" className="text-sm text-muted">{c.use}</span>
             <span role="cell" className="text-sm text-muted">{c.example}</span>
             <span role="cell" className="pt-1 min-[900px]:w-36 min-[900px]:pt-0 min-[900px]:text-right">

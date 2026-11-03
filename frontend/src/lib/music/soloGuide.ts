@@ -95,13 +95,21 @@ export const SOLO_VOICINGS: Record<string, number[]> = {
   D7: [50, 57, 60, 66], // xx0212
   E7: [40, 47, 50, 56, 59, 64], // 020100
   Dm7: [50, 57, 60, 65], // xx0211
+  A: [45, 52, 57, 61, 64], // x02220
+  E: [40, 47, 52, 56, 59, 64], // 022100
+  Bm: [47, 54, 59, 62, 66], // x24432
+  B7: [47, 51, 57, 59, 66], // x21202
+  Bb: [46, 53, 58, 62, 65], // x13331
+  F7: [41, 48, 51, 57, 60, 65], // 131211
+  C7: [48, 52, 58, 60, 67], // x32313 (the theory map's x32310 has no 5th)
 };
-export const SOLO_BASS: Record<string, number> = { ...BASS_ROOT, D: 38, A7: 45, D7: 38, E7: 40, Dm7: 38, Cmaj7: 36 };
+export const SOLO_BASS: Record<string, number> = { ...BASS_ROOT, D: 38, A7: 45, D7: 38, E7: 40, Dm7: 38, Cmaj7: 36, A: 45, E: 40, Bm: 47, B7: 47, Bb: 46, F7: 41, C7: 36 };
 /** Pitch classes of each chord (root first). */
 export const CHORD_TONES: Record<string, number[]> = {
   Am: [9, 0, 4], G: [7, 11, 2], F: [5, 9, 0], C: [0, 4, 7], Em: [4, 7, 11], D: [2, 6, 9],
   A7: [9, 1, 4, 7], D7: [2, 6, 9, 0], E7: [4, 8, 11, 2],
   G7: [7, 11, 2, 5], Cmaj7: [0, 4, 7, 11], Dm7: [2, 5, 9, 0], Dm: [2, 5, 9],
+  A: [9, 1, 4], E: [4, 8, 11], Bm: [11, 2, 6], B7: [11, 3, 6, 9], Bb: [10, 2, 5], F7: [5, 9, 0, 3], C7: [0, 4, 7, 10],
 };
 
 /** Chord-tone pitch classes for any chord symbol (the table above first, then the chord parser). */

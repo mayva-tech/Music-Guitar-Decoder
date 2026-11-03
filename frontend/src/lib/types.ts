@@ -1,5 +1,7 @@
 // TypeScript mirrors of the backend's Pydantic schemas (backend/app/schemas.py).
 
+import type { LeadTone } from "./audio/leadTone";
+
 export type SkillLevel = "zero" | "few_notes" | "basic_chords" | "intermediate" | "advanced";
 export type Style = "classic_rock" | "blues" | "ballad" | "pop" | "acoustic";
 export type Handedness = "right" | "left";
@@ -296,6 +298,6 @@ export interface UserPreferences {
   developerMode: boolean;
   /** When on, selecting a Read item speaks its English text (Microsoft Andrew). */
   autoReadAloud: boolean;
-  /** Lead Solo Workshop: "clean" = the app's lead voice, "crunch" adds mild drive. */
-  leadTone: "clean" | "crunch";
+  /** Lead / practice amp tone for licks and guided solos. */
+  leadTone: LeadTone;
 }

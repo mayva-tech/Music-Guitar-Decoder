@@ -49,6 +49,8 @@ export interface DiagonalLick {
   phrases: DiagonalPhrase[];
   /** Indices of the theme (melody) notes. */
   melody: number[];
+  /** 1 = the first six licks, 2 = the next ten. */
+  set: 1 | 2;
 }
 
 /* --------------------------------------------------------------- notation */
@@ -196,6 +198,7 @@ interface LickDef {
   /** One line per phrase, in the notation above. */
   lines: string[];
   phrases: { label: string; text: string; bars: number }[];
+  set?: 1 | 2;
 }
 
 function defineLick(d: LickDef): DiagonalLick {
@@ -214,10 +217,11 @@ function defineLick(d: LickDef): DiagonalLick {
       bpm: d.bpm, notes, backing: d.chords.map((ch) => [ch, 4] as [string, number]), style: d.style, compact: true,
     },
     genre: d.genre, level: d.level, speedFeel: d.speedFeel, summary: d.summary, phrases, melody: c.melody,
+    set: d.set ?? 1,
   };
 }
 
-export const DIAGONAL_LICKS: DiagonalLick[] = [
+const SET_1: DiagonalLick[] = [
   defineLick({
     id: "dg-staircase", title: "Staircase", sub: "A minor pentatonic, frets 5 → 17, low strings to high.",
     tags: ["Rock", "Triplets"], genre: "Rock", level: "Medium", speedFeel: "eighth-note triplets",
@@ -337,6 +341,206 @@ export const DIAGONAL_LICKS: DiagonalLick[] = [
     ],
   }),
 ];
+
+/* ------------------------------------------------- set 2: the next ten */
+
+const SET_2: DiagonalLick[] = [
+  defineLick({
+    id: "dg-pocket-climb", title: "Pocket climb", sub: "E Dorian funk, frets 7 → 19 and back.", set: 2,
+    tags: ["Funk", "Sixteenths"], genre: "Funk", level: "Harder", speedFeel: "sixteenth notes at 100 BPM",
+    summary: "A syncopated funk hook with rests in it, moved up a position, then 1-3-2-4 cells that climb in sixteenths to fret 19 and a bend at fret 15.",
+    root: "E", mode: "dorian", rootMidi: 52, bpm: 100, style: "pop",
+    chords: ["Em", "A", "Em", "A", "G", "A", "D", "Em"], start: 7,
+    lines: [
+      "@7 *7:.5 -:.25 7:.25 *9:.5 10h:.25 9p:.25 *11~:1 -:.5 9:.25 7:.25 | *12~:1 11:.5 9:.25 10h:.25 *8:1 -:.5 6:.25 7:.25",
+      "*9/:.5 -:.25 9:.25 *11:.5 12h:.25 11p:.25 *13~:1 -:.5 11:.25 9:.25 | *14~:1 13:.5 11:.25 12h:.25 *10:1 -:.5 8:.25 9:.25",
+      "@12 *11:1/4 13 12 14 *13:1/4 15 14 16 @15 *15:1/4 17 16 18 *17:.5 16:.5 | *16b:1.5 @12 14:.5 15:.25 14:.25 12:.5 *14~:1",
+      "@10 *13:1 11:.5 10:.5 *8~:1.5 6:.5 | @7 *7:1 6:.5 4:.5 *0s5~:2",
+    ],
+    phrases: [
+      { label: "Hook", bars: 2, text: "E, a sixteenth rest, then G-A hammered and a B. Leave the rests empty: in funk the gaps are part of the groove. Over A, C# (its 3rd) answers." },
+      { label: "Hook, one position up", bars: 2, text: "Slide E to G on the G string and the hand moves up three frets. Same rhythm, two notes higher." },
+      { label: "Sixteenth cells", bars: 2, text: "Four-note cells that go up, down, up (B-D-C#-E…), each starting two notes higher, up to B at fret 19. Pick every note, loose wrist, accent the first of each four." },
+      { label: "Home", bars: 2, text: "Step down through D, B, A and F# over the D chord, then back to the root E on the A string." },
+    ],
+  }),
+  defineLick({
+    id: "dg-highway", title: "Highway", sub: "A Mixolydian southern rock, frets 2 → 15.", set: 2,
+    tags: ["Southern rock", "Slides"], genre: "Southern rock", level: "Medium", speedFeel: "eighth-note triplets at 112 BPM",
+    summary: "An open, major-sounding hook near the nut, the same hook three notes higher after a slide, triplet groups up to fret 15, and a bend that rides the D chord home.",
+    root: "A", mode: "mixolydian", rootMidi: 57, bpm: 112, style: "rock",
+    chords: ["A", "G", "D", "A", "A", "G", "D", "G", "A"], start: 2,
+    lines: [
+      "@2 *0:1 1:.5 2h:.5 *4~:1.5 2:.5 | *3:1 2:.5 1:.5 *-1~:1.5 0:.5",
+      "*3/:1 4:.5 5h:.5 *7~:1.5 5:.5 | *7:1 5:.5 4:.5 *2~:1.5 5:.5",
+      "@9 *4:1/3 5 6 5 6 7 6 7 8 *7 8 9 | *8:1/3 9 10 9 10 11 @12 10 11 12 *11 12 13 | *13b:1.5 12:.5 11:.5 12:.5 *10~:1",
+      "@10 *8:1 7:.5 6:.5 *5:1.5 3:.5 | @7 *4:1 2:.5 3h:.5 *0~:2",
+    ],
+    phrases: [
+      { label: "Hook", bars: 2, text: "A, B, hammer to C# (the major 3rd) and a long E. The G note over the G chord is what makes it Mixolydian, not plain major." },
+      { label: "Hook, three notes higher", bars: 2, text: "Slide from fret 7 to 12 on the D string: the hand jumps up the neck and the hook starts on D over the D chord." },
+      { label: "Triplet climb", bars: 3, text: "Groups of three that each start one note higher: E-F#-G, F#-G-A… two bars of them take you from fret 9 to 15. Then bend G up to A over D." },
+      { label: "Home", bars: 2, text: "Walk down B, A, G, F# over G, then E, C#, D and a long A at fret 7 on the D string." },
+    ],
+  }),
+  defineLick({
+    id: "dg-iron-gate", title: "Iron gate", sub: "E harmonic minor metal, open E → fret 17.", set: 2,
+    tags: ["Metal", "Sixteenths"], genre: "Metal", level: "Harder", speedFeel: "sixteenth notes at 132 BPM",
+    summary: "A galloping riff on the open low E, a dark melody in the middle of the neck, descending fours that climb to fret 17, then a bend and the D#–E pull home.",
+    root: "E", mode: "harmonic-minor", rootMidi: 52, bpm: 132, style: "rock",
+    chords: ["Em", "Em", "C", "B7", "Em", "C", "Am", "B7", "Em", "B7", "Em"], start: 0,
+    lines: [
+      "@0 *-7:.5 -7:1/4 -7 *-5:.5 -7:1/4 -7 *-4:.5 -7:1/4 -7 *-3~:1 | -7:.5 -7:1/4 -7 *-2:.5 -3:.25 -4:.25 *-1:1 *0~:1",
+      "@7 *5:.5 4:.25 5:.25 *7:.5 5:.25 7:.25 *9~:1.5 8:.5 | *8:.5 6:.5 *4:1 6:.5 7:.5 *8~:1",
+      "@9 *11:1/4 10 9 8 *12:1/4 11 10 9 *13:1/4 12 11 10 *14:1/4 13 12 11 | @12 *14:1/4 13 12 11 *15:1/4 14 13 12 *16:1/4 15 14 13s2 @13 *17:1/4 16 15 14 | *16b:1.5 15:.25 14:.25 *13:.5 14:.5 *12~:1 | *11:1 13:.5 12:.5 *11:.5 10:.5 *8~:1",
+      "@7 *7:1 6:.5 7:.5 *4:1.5 5:.5 | *6:.5 4:.5 *3:1 1:.5 -1:.5 *-3~:1 | @0 *-7:4",
+    ],
+    phrases: [
+      { label: "Gallop riff", bars: 2, text: "Open low E as a pedal: E-E-E, then G on the low E string, A and B on the A string. Palm-mute the open E, let the other notes ring." },
+      { label: "Melody", bars: 2, text: "C-B-C-E, C-E-G over C, then F#, D#, B over B7. The D# is the harmonic-minor note: it pulls hard back to E." },
+      { label: "Descending fours", bars: 4, text: "Four notes down, start one higher: B-A-G-F#, C-B-A-G… two bars climb from fret 9 to 17, then a bend to A over Am and a B–D#–C–B figure over B7." },
+      { label: "Home", bars: 3, text: "E, D#, E over Em, step down over B7, and finish on the open low E." },
+    ],
+  }),
+  defineLick({
+    id: "dg-latin-sunset", title: "Latin sunset", sub: "D Dorian, singing bends, frets 5 → 20.", set: 2,
+    tags: ["Latin rock", "Bends"], genre: "Latin rock", level: "Medium", speedFeel: "eighth-note triplets at 84 BPM",
+    summary: "A long, singing melody with bends over a minor vamp, the same curve a position higher, a triplet run across three strings, and a burst to fret 20.",
+    root: "D", mode: "dorian", rootMidi: 62, bpm: 84, style: "pop",
+    chords: ["Dm", "G", "Dm", "G", "Dm", "G", "Dm"], start: 5,
+    lines: [
+      "@5 *4~:1.5 3:.5 *2:1 0:.5 1:.5 | *4b:2 3:.5 2:.5 *3~:1",
+      "@10 *7~:1.5 6:.5 *5:1 3:.5 4:.5 | *6b:2 5:.5 3:.5 *5~:1",
+      "@12 *4:1/3 5 6 5 6 7 6 7 8 *7 8 9 | @13 *9b:1 10:1/3 11 @16 12 *13~:1 12:.5 11:.5",
+      "@14 *11:.5 9s1:.5 @10 7:.5 8:.5 *7~:2",
+    ],
+    phrases: [
+      { label: "Theme", bars: 2, text: "A long A, then G, F, D, E. Over G, bend A up to B, G's 3rd. Play it like a singer: slow vibrato, no hurry." },
+      { label: "Theme, a position up", bars: 2, text: "The same curve at frets 10–13: D, C, B, G, A, then bend C up to D. The B over Dm is the Dorian colour." },
+      { label: "Triplet run", bars: 1, text: "Groups of three across the G, B and e strings: A-B-C, B-C-D… up to F at fret 13." },
+      { label: "The burst", bars: 1, text: "Bend F up to G, then G-A-B in one beat, up to C at fret 20. Hold it." },
+      { label: "Home", bars: 1, text: "A, F, D, E and a long D at fret 10 with wide vibrato." },
+    ],
+  }),
+  defineLick({
+    id: "dg-reel-ridge", title: "Reel ridge", sub: "G major Celtic reel, frets 3 → 19.", set: 2,
+    tags: ["Celtic", "Triplets"], genre: "Celtic folk", level: "Medium", speedFeel: "jig-feel triplets at 116 BPM",
+    summary: "A fiddle-style tune in jig rhythm (long-short), repeated a position up, then three-note cells (up a third, down a step) that run to the top of the neck.",
+    root: "G", mode: "major", rootMidi: 55, bpm: 116, style: "pop",
+    chords: ["G", "C", "D", "G", "Em", "C", "D", "G", "D", "G"], start: 2,
+    lines: [
+      "@2 *0:1/3 2 4 *7:2/3 4:1/3 *2:2/3 4:1/3 *3:2/3 2:1/3 | *3:2/3 5:1/3 *7:2/3 5:1/3 *4:2/3 3:1/3 *2:1",
+      "@7 *4:1/3 6 8 *11:2/3 8:1/3 *6:2/3 8:1/3 *7:2/3 6:1/3 | *9:2/3 8:1/3 *9:2/3 11:1/3 *10:2/3 9:1/3 *7:1",
+      "@9 *9:1/3 7 8 *10:1/3 8 9 *11:1/3 9 10 *12:1/3 10 11 | @12 *12:1/3 10 11 *13:1/3 11 12 *14:1/3 12 13 @14 *15:1/3 13 14 | @15 *15~:1 16:1/3 15 13 *14:1 13:1/3 12 11",
+      "@12 *14:2/3 12:1/3 *11:2/3 12:1/3 *9:2/3 11:1/3 *14~:1 | @9 *11:2/3 10:1/3 *8:2/3 10:1/3 *11:2/3 8:1/3 *6:1 | @7 *7:2/3 4:1/3 *2:2/3 4:1/3 *7~:2",
+    ],
+    phrases: [
+      { label: "Tune", bars: 2, text: "G-B-D up the arpeggio, then a long-short jig rhythm: G, D, B, D, C, B. Lean on the long notes." },
+      { label: "Tune, a position up", bars: 2, text: "The same rhythm at fret 7, starting on D over the D chord. Fiddle tunes repeat their phrases, so should you." },
+      { label: "The reel", bars: 3, text: "Three-note cells: up a third, down a step (B-G-A, C-A-B…), each one note higher. Two bars climb from fret 10 to 17, then a turn around A and B up at fret 19." },
+      { label: "Ridge and home", bars: 3, text: "Dance around G at fret 15, step back down to fret 10 over D, and end on G at fret 8." },
+    ],
+  }),
+  defineLick({
+    id: "dg-velvet", title: "Velvet two-five", sub: "C major neo-soul, ii – V – I, frets 7 → 17.", set: 2,
+    tags: ["Neo-soul", "Legato"], genre: "Neo-soul", level: "Harder", speedFeel: "sextuplets at 70 BPM",
+    summary: "A smooth line over Dm7 – G7 – Cmaj7 that hits each chord's 3rd or 7th, the same line slid up a position, a sextuplet flurry, and a soft landing on G.",
+    root: "C", mode: "major", rootMidi: 60, bpm: 70, style: "pop",
+    chords: ["Dm7", "G7", "Cmaj7", "Am", "G7", "Cmaj7"], start: 8,
+    lines: [
+      "@8 *5~:1.5 7:.5 8h:.5 7p:.5 *3:1 | *6:1 4:.5 3:.5 *1~:1.5 2:.5",
+      "*4/:1 6:.5 7h:.5 *9~:1.5 7:.5 | *8b:1.5 7:.5 *5:1 4:.5 2:.5",
+      "@12 *6:1/6 7 8 7 8 9 @13 8 9 10 9 10 11 *12b:1.5 11:.5",
+      "*11:.5 9:.5 10:.5 9:.5 *7~:2",
+    ],
+    phrases: [
+      { label: "Line over ii – V", bars: 2, text: "A over Dm7, C-D-C, then F (its 3rd). Over G7, B (its 3rd) falls through G and F to D and E. Slow and behind the beat." },
+      { label: "Slide up", bars: 2, text: "Slide E to G on the G string and the line moves up a position: G, B, C, a long E over Cmaj7, then bend D up to E over Am." },
+      { label: "Flurry", bars: 1, text: "Twelve notes in two beats, groups of three from B up to G, then bend A up to B over G7." },
+      { label: "Landing", bars: 1, text: "G, E, F, E and a long C. On Cmaj7 every one of those is a chord tone or right next to one." },
+    ],
+  }),
+  defineLick({
+    id: "dg-rockabilly", title: "Rockabilly ramble", sub: "E major pentatonic, 12-bar shuffle, open → fret 16.", set: 2,
+    tags: ["Rockabilly", "Shuffle"], genre: "Rockabilly", level: "Harder", speedFeel: "swung triplets at 144 BPM",
+    summary: "A full 12-bar blues in 20 seconds: open-position licks, the same idea up the neck over A, a triplet run to fret 16, and a turnaround on B.",
+    root: "E", mode: "major-pentatonic", rootMidi: 52, bpm: 144, style: "shuffle",
+    chords: ["E", "E", "E", "E", "A", "A", "E", "E", "B7", "A", "E", "B7"], start: 0,
+    lines: [
+      "@0 *0:2/3 2:1/3 *3:2/3 2:1/3 *0:1 -:1 | *-2:2/3 -1h:1/3 *0:2/3 -1:1/3 *-2:1 -3~:1 | *5:2/3 4:1/3 *5:2/3 3:1/3 *2:2/3 0:1/3 *-2:1 | *-3:1 -2:2/3 0:1/3 *2:1 *4:1",
+      "@5 *4:2/3 5:1/3 *6:2/3 5:1/3 *4:1 -:1 | *5:2/3 6:1/3 *8:2/3 6:1/3 *9:1 -:1 | @9 *8:2/3 9:1/3 *10:2/3 9:1/3 *8:1 7:1 | *10:2/3 8:1/3 *7:2/3 8:1/3 *5~:2",
+      "@11 *8:1/3 9 10 9 10 11 @12 10 11 12 *11 12 10 | @12 *12b1:1.5 11:.5 10:.5 9:.5 *10~:1",
+      "@9 *8:2/3 7:1/3 *5:2/3 7:1/3 *8:1 *5~:1 | @7 *3:2/3 4:1/3 *3:2/3 1:1/3 *3~:2",
+    ],
+    phrases: [
+      { label: "Open position", bars: 4, text: "Bars 1–4 over E: E-G#-B, then B-C# hammered, then E down to B. Swing every pair: long-short." },
+      { label: "Up the neck", bars: 4, text: "Over A the same rhythm moves to fret 5 (C#, E, F#), then to fret 9–12 back over E." },
+      { label: "Triplet run", bars: 2, text: "Groups of three over B7: B-C#-E, C#-E-F#… climbing to G# at fret 16, then a half bend from G# to A over the A chord." },
+      { label: "Turnaround", bars: 2, text: "B, G#, E over E, then end on B over B7 so the 12 bars can start again." },
+    ],
+  }),
+  defineLick({
+    id: "dg-glass-river", title: "Glass river", sub: "B minor fusion, arpeggio cells, frets 2 → 19.", set: 2,
+    tags: ["Fusion", "Arpeggios"], genre: "Fusion", level: "Harder", speedFeel: "sixteenth notes at 96 BPM",
+    summary: "A low theme near the nut, the same theme an octave up, then flowing triad arpeggio cells (no scale runs) that climb to fret 19 and fall home.",
+    root: "B", mode: "minor", rootMidi: 59, bpm: 96, style: "pop",
+    chords: ["Bm", "G", "D", "A", "Bm", "G", "A", "Bm"], start: 2,
+    lines: [
+      "@2 *-3~:1.5 -5:.5 -4:.5 -3:.5 *-1:1 | *0~:1 -1:.5 -3:.5 *-2:1.5 -3:.5",
+      "*-1/:.5 @7 *4:1 2:.5 3:.5 4:.5 *6:1 | *6:.5 7:.5 *9b:1.5 8:.5 6:1",
+      "@10 *4:1/4 6 8 6 *5:1/4 7 9 7 *6:1/4 8 10 8 *7:1/4 9 11 9 | *9s1:1/4 @14 11 13 11 @15 *10:1/4 12 14 12 *14~:1 13:.5 12:.5",
+      "@12 *12b:1.5 11:.5 9:.5 10:.5 *8:1 | @7 *7:1 4:.5 6:.5 *7~:2",
+    ],
+    phrases: [
+      { label: "Low theme", bars: 2, text: "F#, D, E, F#, A at frets 2–5, then B, A, F#, G. Clean and even." },
+      { label: "Theme, an octave up", bars: 2, text: "Slide F# to A on the D string, then the same theme an octave higher at fret 7. Bend D up to E over A." },
+      { label: "Arpeggio cells", bars: 2, text: "Each beat is a triad: F#-A-C#-A, G-B-D-B, A-C#-E-C#… every cell one note higher. Legato feel, fingers rolling across the strings. Peaks on B at fret 19." },
+      { label: "Fall home", bars: 2, text: "Bend G up to A over A, then F#, D, E, C#; finish B, F#, A and a long B over Bm at fret 7." },
+    ],
+  }),
+  defineLick({
+    id: "dg-skyline", title: "Skyline", sub: "F major pentatonic pop-punk, frets 5 → 20.", set: 2,
+    tags: ["Pop-punk", "Hooks"], genre: "Pop-punk", level: "Harder", speedFeel: "triplets at 150 BPM",
+    summary: "A shout-along hook in eighth notes, the same hook a position up for the second time round, a triplet run to fret 20, and a big landing on F.",
+    root: "F", mode: "major-pentatonic", rootMidi: 65, bpm: 150, style: "rock",
+    chords: ["F", "C", "Dm", "Bb", "F", "C", "Dm", "Bb", "F", "C", "Bb", "F"], start: 5,
+    lines: [
+      "@5 *2:.5 2:.5 *3:1 2:.5 1:.5 *0:1 | *-2:.5 -2:.5 *0:1 -2:.5 -3:.5 *-4~:1 | *-1:.5 -1:.5 *0:1 2:.5 1:.5 *-1:1 | *0:1.5 -1:.5 *-2:1 -1:1",
+      "@12 *5:.5 5:.5 *6:1 5:.5 4:.5 *3:1 | *1:.5 1:.5 *3:1 1:.5 0:.5 *-1~:1 | *2:.5 2:.5 *3:1 5:.5 4:.5 *2:1 | *4:1.5 3:.5 *2:1 3:1",
+      "@13 *2:1/3 3 4 3 4 5 4 5 6 *5 6 7 | @13 *5b:1.5 6:.5 7:.5 @17 8:.5 *7~:1",
+      "@10 *4:.5 3:.5 2:.5 0:.5 *-1:1 0:.5 2:.5 | *3:1 2:.5 *0~:2.5",
+    ],
+    phrases: [
+      { label: "Hook", bars: 4, text: "A-A-C, A, G, F: the kind of line a crowd sings. Then C over C, D over Dm, F over B♭. Down-picks only, it's punk." },
+      { label: "Hook, second time", bars: 4, text: "The same hook three notes higher at frets 12–15. Repeating a hook higher is how pop songs lift the second chorus." },
+      { label: "Triplet run", bars: 2, text: "Groups of three: A-C-D, C-D-F… up to A at fret 17, then bend F up to G over C and climb to C at fret 20." },
+      { label: "Landing", bars: 2, text: "D, C, A, F, D over B♭, then C, A and a long F to finish." },
+    ],
+  }),
+  defineLick({
+    id: "dg-midnight", title: "Midnight blues", sub: "C blues, slow 12/8 feel, frets 8 → 20.", set: 2,
+    tags: ["Slow blues", "Bends"], genre: "Slow blues", level: "Medium", speedFeel: "sextuplets at 60 BPM",
+    summary: "One bar at a time over a slow blues: a cry with two bends, an answer up the neck, a sextuplet run through the blue note to fret 20, a peak, and home.",
+    root: "C", mode: "blues", rootMidi: 60, bpm: 60, style: "shuffle",
+    chords: ["C7", "F7", "C7", "G7", "C7"], start: 8,
+    lines: [
+      "@8 *5b:1.5 4:.5 *1b1:1 *0~:1",
+      "@11 *6:1 5:.5 6:.5 *7b:1.5 6:.5",
+      "@11 *6:1/6 7 8 7 8 9 8 9 10 9 10 12/ *11b~:2",
+      "@15 *10:1 11:.5 10:.5 *11b1:1.5 10:.5",
+      "@11 *6:1 4:.5 1b1:.5 *0~:2",
+    ],
+    phrases: [
+      { label: "The cry", bars: 1, text: "Bend B♭ up to C, fall to G, then the blue curl: E♭ half-bent towards E, C7's 3rd. Each note is a full second; let it hang." },
+      { label: "The answer", bars: 1, text: "Up at fret 11–13 over F7: C, B♭, C, then bend E♭ up to F, the chord's root." },
+      { label: "The run", bars: 1, text: "A sextuplet run in groups of three through F, F# (the blue note) and G, sliding up to C at fret 20, then a bend from B♭ to C." },
+      { label: "Peak", bars: 1, text: "G and B♭ at the top of the neck over G7; half-bend B♭ to B, the chord's 3rd." },
+      { label: "Home", bars: 1, text: "C, G, a half bend on E♭ and a long C with vibrato." },
+    ],
+  }),
+];
+
+export const DIAGONAL_LICKS: DiagonalLick[] = [...SET_1, ...SET_2];
 
 export const DIAGONAL_BY_ID: Record<string, DiagonalLick> = Object.fromEntries(DIAGONAL_LICKS.map((d) => [d.lick.id, d]));
 

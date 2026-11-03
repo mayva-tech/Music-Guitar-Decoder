@@ -3,6 +3,7 @@
  * Uses the app guitar/bass/drum voices where possible; organ is a plain sine.
  */
 import { getEngine, loadTone, playLead } from "@/lib/audio/engine";
+import { DEFAULT_LEAD_TONE, type LeadTone } from "@/lib/audio/leadTone";
 import { articulation } from "@/lib/audio/timeline";
 import { midiToFreq } from "@/lib/music/theory";
 import { TONES, warmToneKind, type WarmToneKind } from "@/lib/audio/guitarTone";
@@ -18,8 +19,8 @@ export type LeadSound = Sound & { lead?: PlayableNote[] };
 export interface PlayOptions {
   /** Lead line (lick notes, beats relative to the example start) played with playLead + articulation. */
   lead?: PlayableNote[];
-  /** "clean" = the app's lead path; "crunch" adds a mild waveshaper before the cab filter. */
-  leadTone?: "clean" | "crunch";
+  /** Amp tone for the lead voice (clean / crunch / distortion / wah / blues). */
+  leadTone?: LeadTone;
   /** Reschedule the example back to back until stop(). */
   loop?: boolean;
   /**
@@ -64,27 +65,80 @@ interface LeadVoice {
   busyUntil: number;
 }
 interface LeadRig {
-  tone: "clean" | "crunch";
+  tone: LeadTone;
   pools: Record<"bass" | "g", LeadVoice[]>;
 }
 
-/** Mild amp-style drive for the crunch lead (pre-gain → soft clip → makeup). */
-const CRUNCH = { pre: 2.2, distortion: 0.32, post: 0.6 };
+/** Amp-style drive stages (pre-gain → soft clip → makeup). Keep levels conservative — heavy FX can crack. */
+const DRIVE = {
+  crunch: { pre: 2.2, distortion: 0.32, post: 0.6 },
+  /** Triple high-gain stack for saturated heavy-metal lead. */
+  distortion: { pre: 9.5, distortion: 1, post: 0.12, stage2: 0.95, stage3: 0.85 },
+  blues: { pre: 1.7, distortion: 0.22, post: 0.72 },
+  wah: { pre: 1.9, distortion: 0.28, post: 0.55 },
+} as const;
 
-function buildLeadRig(Tone: ToneMod, kit: Kit, tone: "clean" | "crunch"): LeadRig {
+function buildLeadRig(Tone: ToneMod, kit: Kit, tone: LeadTone): LeadRig {
   const keep = <N extends { dispose(): unknown }>(n: N) => (kit.fx.push(n), n);
-  // Same cab as the engine's lead voices; crunch puts the drive in front of it.
+  // Same cab as the engine's lead voices; drive / wah sit in front of it.
   const chain = (lpHz: number, hpHz: number): import("tone").InputNode => {
-    const hp = keep(new Tone.Filter(hpHz, "highpass"));
-    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: lpHz, rolloff: -12 }));
+    // Metal: tight lows + deep scoop + dark cab so max gain stays thick, not fizzy.
+    const cabHp = tone === "distortion" ? Math.max(hpHz, 220) : hpHz;
+    const cabLp = tone === "blues" ? lpHz * 0.78 : tone === "distortion" ? Math.min(lpHz * 0.42, 2200) : lpHz;
+    const hp = keep(new Tone.Filter(cabHp, "highpass"));
+    const lp = keep(new Tone.Filter({
+      type: "lowpass",
+      frequency: cabLp,
+      rolloff: tone === "distortion" ? -24 : -12,
+    }));
     hp.connect(lp);
-    lp.connect(kit.bus);
-    if (tone !== "crunch") return hp;
-    const pre = keep(new Tone.Gain(CRUNCH.pre));
-    const dist = keep(new Tone.Distortion({ distortion: CRUNCH.distortion, oversample: "2x" }));
-    const post = keep(new Tone.Gain(CRUNCH.post));
+    if (tone === "distortion") {
+      const scoop = keep(new Tone.Filter({ type: "notch", frequency: 680, Q: 1.1 }));
+      const presence = keep(new Tone.Filter({ type: "peaking", frequency: 3200, Q: 0.9, gain: 4 }));
+      lp.connect(scoop);
+      scoop.connect(presence);
+      presence.connect(kit.bus);
+    } else {
+      lp.connect(kit.bus);
+    }
+    if (tone === "clean") return hp;
+
+    const drive = DRIVE[tone === "wah" ? "wah" : tone];
+    const pre = keep(new Tone.Gain(drive.pre));
+    const dist = keep(new Tone.Distortion({ distortion: drive.distortion, oversample: "4x" }));
+    const post = keep(new Tone.Gain(drive.post));
     pre.connect(dist);
-    dist.connect(post);
+
+    if (tone === "distortion" && "stage2" in drive) {
+      // Three clip stages = saturated metal wall without one insane single waveshaper.
+      const mid = keep(new Tone.Gain(2.6));
+      const dist2 = keep(new Tone.Distortion({ distortion: drive.stage2, oversample: "4x" }));
+      const mid2 = keep(new Tone.Gain(2.2));
+      const dist3 = keep(new Tone.Distortion({ distortion: drive.stage3, oversample: "4x" }));
+      dist.connect(mid);
+      mid.connect(dist2);
+      dist2.connect(mid2);
+      mid2.connect(dist3);
+      dist3.connect(post);
+    } else {
+      dist.connect(post);
+    }
+
+    if (tone === "wah") {
+      const wah = keep(new Tone.AutoWah({
+        baseFrequency: 120,
+        octaves: 5.5,
+        sensitivity: -28,
+        Q: 5.5,
+        gain: 1.6,
+        follower: 0.12,
+      }));
+      wah.wet.value = 0.85;
+      post.connect(wah);
+      wah.connect(hp);
+      return pre;
+    }
+
     post.connect(hp);
     return pre;
   };
@@ -92,7 +146,7 @@ function buildLeadRig(Tone: ToneMod, kit: Kit, tone: "clean" | "crunch"): LeadRi
     const dest = chain(lpHz, hpHz);
     return [0, 1].map(() => {
       const synth = keep(new Tone.MonoSynth(opts).connect(dest));
-      synth.volume.value = -4;
+      synth.volume.value = tone === "distortion" ? -12 : tone === "wah" ? -5 : -4;
       return { synth, busyUntil: 0 };
     });
   };
@@ -352,8 +406,9 @@ class TheoryPlayerImpl implements TheoryPlayer {
     const kit = this.kit!;
 
     const lead = opts?.lead && opts.lead.length ? [...opts.lead].sort((a, b) => a.start_beat - b.start_beat) : null;
-    if (lead && !kit.lead) {
-      try { kit.lead = buildLeadRig(Tone, kit, opts?.leadTone ?? "clean"); } catch { kit.lead = null; }
+    const wantTone = opts?.leadTone ?? DEFAULT_LEAD_TONE;
+    if (lead && (!kit.lead || kit.lead.tone !== wantTone)) {
+      try { kit.lead = buildLeadRig(Tone, kit, wantTone); } catch { kit.lead = null; }
     }
     // Per-string previous note (for slides / legato), in beat order. Same for every pass.
     const leadPrev = new Map<PlayableNote, PlayableNote | undefined>();
@@ -370,8 +425,8 @@ class TheoryPlayerImpl implements TheoryPlayer {
     const beatSec = 60 / cur.bpm;
     // A pass may carry its own lead line (backing tracks change it bar by bar); otherwise use opts.lead.
     const passLead = cur.lead && cur.lead.length ? [...cur.lead].sort((a, b) => a.start_beat - b.start_beat) : lead;
-    if (passLead && !kit.lead) {
-      try { kit.lead = buildLeadRig(Tone, kit, opts?.leadTone ?? "clean"); } catch { kit.lead = null; }
+    if (passLead && (!kit.lead || kit.lead.tone !== wantTone)) {
+      try { kit.lead = buildLeadRig(Tone, kit, wantTone); } catch { kit.lead = null; }
     }
     const passPrev = passLead === lead ? leadPrev : new Map<PlayableNote, PlayableNote | undefined>();
     if (passLead && passLead !== lead) {

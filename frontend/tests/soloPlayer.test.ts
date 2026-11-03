@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const created: { distortion: number; mono: number } = { distortion: 0, mono: 0 };
+const created: { distortion: number; mono: number; wah: number } = { distortion: 0, mono: 0, wah: 0 };
 const leadCalls: { synth: unknown; midi: number; at: number; art: unknown }[] = [];
 const drawSchedules: { time: number; fn: () => void }[] = [];
 
@@ -26,6 +26,10 @@ vi.mock("tone", () => {
     NoiseSynth: Plain,
     Filter: Plain,
     Distortion: class { constructor() { created.distortion++; Object.assign(this, node()); } },
+    AutoWah: class {
+      wet = { value: 1 };
+      constructor() { created.wah++; Object.assign(this, node()); }
+    },
     Gain: class {
       gain = { value: 1, cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() };
       constructor() { Object.assign(this, node()); }
@@ -53,6 +57,7 @@ describe("theory player lead line", () => {
   beforeEach(() => {
     created.distortion = 0;
     created.mono = 0;
+    created.wah = 0;
     leadCalls.length = 0;
     drawSchedules.length = 0;
     vi.resetModules();
@@ -106,6 +111,23 @@ describe("theory player lead line", () => {
     expect(created.mono).toBeGreaterThan(monoPlain);
     getTheoryPlayer().stop();
     await p;
+  });
+
+  it("distortion and wah build their FX stages", async () => {
+    const { getTheoryPlayer } = await import("@/lib/theory/player");
+    const { LICKS_BY_ID, lickExample } = await import("@/lib/music/soloGuide");
+    const lick = LICKS_BY_ID["t-vibrato"]!;
+    const d = getTheoryPlayer().play(lickExample(lick), () => undefined, { lead: lick.notes, leadTone: "distortion" });
+    await until(() => created.distortion > 0);
+    expect(created.wah).toBe(0);
+    getTheoryPlayer().stop();
+    await d;
+    created.distortion = 0;
+    created.wah = 0;
+    const w = getTheoryPlayer().play(lickExample(lick), () => undefined, { lead: lick.notes, leadTone: "wah" });
+    await until(() => created.wah > 0 && created.distortion > 0);
+    getTheoryPlayer().stop();
+    await w;
   });
 
   it("loops until stop, then stop resolves and clears highlights", async () => {

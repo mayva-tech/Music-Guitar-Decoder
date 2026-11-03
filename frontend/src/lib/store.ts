@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { normalizeLeadTone } from "./audio/leadTone";
 import type { Arrangement, DetectedMelody, HarmonizeResponse, PracticeSessionRecord, UserPreferences } from "./types";
 
 export const DEFAULT_PREFS: UserPreferences = {
@@ -81,7 +82,9 @@ export const useApp = create<AppState>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
-        return { ...current, ...p, prefs: { ...DEFAULT_PREFS, ...(p.prefs ?? {}) } };
+        const prefs = { ...DEFAULT_PREFS, ...(p.prefs ?? {}) };
+        prefs.leadTone = normalizeLeadTone(prefs.leadTone);
+        return { ...current, ...p, prefs };
       },
     },
   ),

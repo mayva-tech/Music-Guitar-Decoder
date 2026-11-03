@@ -13,6 +13,7 @@ import { SoloHero } from "@/components/solo/SoloHero";
 import { TechniqueCard } from "@/components/solo/TechniqueCard";
 import { SectionHead, chordListFor, type MapRequest } from "@/components/solo/shared";
 import { useSoloAudio } from "@/components/solo/useSoloAudio";
+import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { JAM_TRACKS, LICKS, TECHNIQUES, TARGET_CHORDS } from "@/lib/music/soloGuide";
 import { useApp, useHydrated } from "@/lib/store";
 
@@ -21,7 +22,7 @@ const DEFAULT_MAP: MapRequest = { root: "A", mode: "minor-pentatonic", box: 1, c
 export default function LeadSoloPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
-  const leadTone = hydrated ? storedTone : "clean";
+  const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
   const setPrefs = useApp((s) => s.setPrefs);
   const audio = useSoloAudio(leadTone);
   const [open, setOpen] = useState(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyChip } from "@/components/KeyChip";
 import { LickNeck, mapRequestForLick, type ShowMap } from "./shared";
 import { LickTab } from "./LickTab";
 import type { SoloAudio } from "./useSoloAudio";
@@ -22,7 +23,12 @@ export function TechniqueCard({
       data-testid={`technique-card-${tech.id}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-lg font-bold leading-tight">{tech.name}</h3>
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <KeyChip root={tech.lick.root} mode={tech.lick.mode} />
+          </div>
+          <h3 className="text-lg font-bold leading-tight">{tech.name}</h3>
+        </div>
         <span
           className="shrink-0 rounded-md px-2 py-0.5 font-mono text-sm font-bold"
           style={{ background: "color-mix(in srgb, var(--color-next) 22%, var(--color-panel-2))", color: "var(--color-next)" }}

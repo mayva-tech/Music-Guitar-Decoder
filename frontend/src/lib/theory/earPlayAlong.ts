@@ -127,7 +127,7 @@ const TW = {
 
 export const PLAY_SONG_DEFS: PlaySongDef[] = [
   {
-    id: "ode", title: "Ode to Joy", meta: "Beethoven, 1824 · C major · 4/4", bpm: 100, beatsPerBar: 4,
+    id: "ode", title: "Ode to Joy", meta: "Beethoven, 1824 · Key: C major · 4/4", bpm: 100, beatsPerBar: 4,
     bars: [ODE_A, ODE_B, ODE_C, { chords: [["C", "I", 2], ["G", "V", 2]], melody: [[64, 1.5], [62, 0.5], [62, 2]] },
       ODE_A, ODE_B, ODE_C, { chords: [["G", "V", 2], ["C", "I", 2]], melody: [[62, 1.5], [60, 0.5], [60, 2]] }],
     positions: OPEN_POS,
@@ -135,14 +135,14 @@ export const PLAY_SONG_DEFS: PlaySongDef[] = [
     tip: "Only five notes, all next to each other. A good first tune: it moves in steps almost all the way.",
   },
   {
-    id: "twinkle", title: "Twinkle, Twinkle, Little Star", meta: "Traditional · C major · 4/4", bpm: 100, beatsPerBar: 4,
+    id: "twinkle", title: "Twinkle, Twinkle, Little Star", meta: "Traditional · Key: C major · 4/4", bpm: 100, beatsPerBar: 4,
     bars: [TW.a, TW.b, TW.c, TW.d, TW.e, TW.f, TW.e, TW.f, TW.a, TW.b, TW.c, TW.d],
     positions: OPEN_POS,
     hand: { lo: 1, hi: 5, label: "First position: index on fret 1, pinky stretches to fret 5 for A" },
     tip: "The first leap, C up to G, is the hardest note to find by ear. After that it walks down one step at a time.",
   },
   {
-    id: "amazing-grace", title: "Amazing Grace", meta: "Traditional · G major · 3/4", bpm: 84, beatsPerBar: 3,
+    id: "amazing-grace", title: "Amazing Grace", meta: "Traditional · Key: G major · 3/4", bpm: 84, beatsPerBar: 3,
     bars: [...AMAZING_GRACE_BARS, { chords: [["G", "I", 3]], melody: [[67, 3]] }],
     positions: { 62: [3, 7, 1], 64: [3, 9, 3], 67: [2, 8, 2], 69: [2, 10, 4], 71: [1, 7, 1], 74: [1, 10, 4] },
     hand: { lo: 7, hi: 10, label: "Position VII: index finger on fret 7" },

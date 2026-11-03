@@ -80,4 +80,36 @@ test.describe("Diagonal licks", () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   });
+  test("set 2: level filter, every new lick opens, and a seven-note-scale lick plays", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/learn/diagonal");
+    const chooser = page.getByTestId("dg-chooser");
+    await expect(chooser.locator('[data-testid^="dg-pick-"]')).toHaveCount(16);
+    await expect(page.getByTestId("dg-set-2").locator('[data-testid^="dg-pick-"]')).toHaveCount(10);
+
+    await page.getByTestId("dg-level-Harder").click();
+    const harder = await chooser.locator('[data-testid^="dg-pick-"]').count();
+    expect(harder).toBeGreaterThan(0);
+    expect(harder).toBeLessThan(16);
+    await page.getByTestId("dg-level-all").click();
+
+    const practice = page.getByTestId("dg-practice");
+    const ids = ["dg-pocket-climb", "dg-highway", "dg-iron-gate", "dg-latin-sunset", "dg-reel-ridge",
+      "dg-velvet", "dg-rockabilly", "dg-glass-river", "dg-skyline", "dg-midnight"];
+    for (const id of ids) {
+      await page.getByTestId(`dg-pick-${id}`).click();
+      await expect(practice).toHaveAttribute("data-lick", id);
+      await expect(practice.getByTestId("lick-route")).toBeAttached();
+      await expect(practice.getByTestId("lick-tab")).toBeVisible();
+    }
+
+    // Latin sunset (D Dorian): play phrase 1 and see notes light.
+    await page.getByTestId("dg-pick-dg-latin-sunset").click();
+    await practice.getByTestId("dg-part-0").click();
+    await practice.getByTestId("dg-play").click();
+    await expect(practice.locator(".solo-hl.is-on").first()).toBeAttached({ timeout: 4000 });
+    await practice.getByTestId("dg-play").click();
+    expect(errors).toEqual([]);
+  });
 });

@@ -6,6 +6,7 @@ import { IconPlay, IconStop } from "@/components/Icons";
 import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
 import { LickTab } from "@/components/solo/LickTab";
 import { LICK_STYLES, lickBar, nextChange, soloPosition, voicingsFor, type LickStyle } from "@/lib/music/backingSolo";
+import { KeyChip } from "@/components/KeyChip";
 import { chordsOf, scaleLabel, type BackingTrack, type Genre } from "@/lib/music/backingTracks";
 import { buildFretmap } from "@/lib/music/scaleFretmap";
 import type { PlayableNote } from "@/lib/types";
@@ -95,6 +96,7 @@ export function SoloGuide({
         <div className="max-w-3xl">
           <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: genre.colour }}>Solo guide · live fretboard</p>
           <h2 id="solo-guide-heading" className="display text-2xl">Solo over {track.name}</h2>
+          <div className="mt-1"><KeyChip root={track.root} mode={track.mode} /></div>
           <p className="mt-1 text-sm leading-relaxed text-muted">
             {track.root} {scaleLabel(track.mode)}{pos.box ? ", box 1" : ""}, frets {pos.window.from}–{pos.window.to}. Ringed notes are the
             chord sounding now. While the loop plays, the neck shows only the lick note you should play at that moment.

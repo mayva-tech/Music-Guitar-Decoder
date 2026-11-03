@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lightScope } from "@/components/solo/useSoloAudio";
+import type { LeadTone } from "@/lib/audio/leadTone";
 import { nextRampPct, practiceExample, type DiagonalLick } from "@/lib/music/diagonalLicks";
 import { getTheoryPlayer } from "@/lib/theory/player";
 
@@ -41,7 +42,7 @@ export function playKey(lickId: string, p: Pick<DiagonalPlay, "part" | "melodyOn
  * and highlights in the lick's scope (`data-hl-scope="<lick id>"`). Looping reschedules the pass
  * back to back; a tempo change (or the speed-up) applies from the next pass.
  */
-export function useDiagonalAudio(leadTone: "clean" | "crunch"): DiagonalAudio {
+export function useDiagonalAudio(leadTone: LeadTone): DiagonalAudio {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [pass, setPass] = useState(0);
   const [livePct, setLivePct] = useState<number | null>(null);

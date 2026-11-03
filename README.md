@@ -83,10 +83,12 @@ solo, and four looping jam tracks with tempo. Every lick plays through the app's
 
 ## Diagonal licks
 
-**Diagonal licks** (`/learn/diagonal`) has six original 20-second licks that travel across the neck instead of
-running up and down one box. Each is shaped like a short solo: a **theme** (melody), the theme moved up (or down)
+**Diagonal licks** (`/learn/diagonal`) has sixteen original 20-second licks in two sets that travel across the neck
+instead of running up and down one box. Each is shaped like a short solo: a **theme** (melody), the theme moved up (or down)
 a position, a **speed phrase** built from repeating cells (groups of three, descending fours, a sextuplet burst),
 and a peak that comes home to a chord tone.
+
+**Set 1** (pentatonic and blues):
 
 | Lick | Style | Key, tempo | Route | Fastest notes |
 |---|---|---|---|---|
@@ -96,6 +98,25 @@ and a peak that comes home to a chord tone.
 | Night drive | Hard rock | E minor pent., 120 BPM | frets 7 → 17 → open | sixteenths |
 | Slow burn | Rock ballad | D minor pent., 72 BPM | frets 10 → 20 | sextuplets |
 | Pop glide | Pop | C major pent., 100 BPM | frets 5 → 17 | triplets |
+
+**Set 2** (new styles and seven-note scales):
+
+| Lick | Style | Key, tempo | Route | Fastest notes |
+|---|---|---|---|---|
+| Pocket climb | Funk | E Dorian, 100 BPM | frets 7 → 19 → 7 | sixteenths |
+| Highway | Southern rock | A Mixolydian, 112 BPM | frets 2 → 15 | triplets |
+| Iron gate | Metal | E harmonic minor, 132 BPM | open → 17 → open | sixteenths |
+| Latin sunset | Latin rock | D Dorian, 84 BPM | frets 5 → 20 | triplets |
+| Reel ridge | Celtic folk | G major, 116 BPM | frets 3 → 19 | jig-feel triplets |
+| Velvet two-five | Neo-soul (ii – V – I) | C major, 70 BPM | frets 7 → 17 | sextuplets |
+| Rockabilly ramble | Rockabilly (12-bar shuffle) | E major pent., 144 BPM | open → 16 | swung triplets |
+| Glass river | Fusion (triad arpeggio cells) | B natural minor, 96 BPM | frets 2 → 19 | sixteenths |
+| Skyline | Pop-punk | F major pent., 150 BPM | frets 5 → 20 | triplets |
+| Midnight blues | Slow blues | C blues, 60 BPM | frets 8 → 20 | sextuplets |
+
+The lick chooser groups the licks by set and filters them by level (Medium / Harder). Set 2 added the chords
+A, E, Bm, B7, B♭ and F7 to the solo backing (`SOLO_VOICINGS`, `SOLO_BASS`, `CHORD_TONES`) and a full C7 voicing
+(x32313; the theory map's x32310 has no 5th).
 
 - **Practice station:** the neck shows the lick's route (dotted line) and rings the melody notes; notes and TAB
   light as they sound. Practise the whole lick or loop one phrase; **Melody only** plays just the theme.

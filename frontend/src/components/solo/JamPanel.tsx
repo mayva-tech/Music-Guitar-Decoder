@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { KeyChip } from "@/components/KeyChip";
+import { keyOfLabel } from "@/lib/music/scaleFretmap";
 import { SectionHead, type ShowMap } from "./shared";
 import type { SoloAudio } from "./useSoloAudio";
 import { JAM_IDEAS, JAM_TRACKS, CHORD_TONES } from "@/lib/music/soloGuide";
@@ -50,7 +52,7 @@ export function JamPanel({ audio, onShowMap }: { audio: SoloAudio; onShowMap: Sh
                 className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-3 text-left ${sel ? "bg-panel-2" : "hover:bg-panel-2/50"}`}
               >
                 <span className="text-sm font-bold">{t.name}</span>
-                <span className="text-xs text-muted">{t.description} · {t.bpm} BPM</span>
+                <span className="text-xs text-muted">{keyOfLabel(t.root, t.mode)} · {t.description} · {t.bpm} BPM</span>
               </button>
             );
           })}
@@ -110,14 +112,17 @@ export function JamPanel({ audio, onShowMap }: { audio: SoloAudio; onShowMap: Sh
             </label>
           </div>
           {jamming && <p className="text-xs text-faint">Tempo changes apply from the next loop.</p>}
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            data-testid="jam-show-map"
-            onClick={() => onShowMap({ root: track.root, mode: track.mode, box: track.box, chordList: chords })}
-          >
-            Show scale on fretboard
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <KeyChip root={track.root} mode={track.mode} />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              data-testid="jam-show-map"
+              onClick={() => onShowMap({ root: track.root, mode: track.mode, box: track.box, chordList: chords })}
+            >
+              Show scale on fretboard
+            </button>
+          </div>
           <div>
             <p className="mb-1 text-xs uppercase tracking-wide text-faint">Ideas to try</p>
             <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted">

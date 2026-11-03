@@ -214,7 +214,7 @@ export function TrackList({
                   <span className="truncate text-sm font-bold">{t.name}</span>
                 </span>
                 <span className="truncate text-xs text-muted">
-                  {keyName(t)} · {FEEL_LABEL[t.drums.feel]}
+                  Key: {keyName(t)} · {FEEL_LABEL[t.drums.feel]}
                   {meterOf(t) === "3/4" ? " · 3/4" : ""} · {t.bars.length} bars
                   {bpmFor(t) !== t.bpm ? <span className="text-faint"> · orig. {t.bpm}</span> : null}
                 </span>
@@ -331,7 +331,7 @@ export function LoopPlayer({
         </p>
         <h2 className="display text-[1.6rem] leading-tight" data-testid="backing-player-title">{track.name}</h2>
         <p className="text-sm text-muted">
-          {keyName(track)} · {FEEL_LABEL[track.drums.feel]}{track.drums.name !== FEEL_LABEL[track.drums.feel] ? ` (${track.drums.name.toLowerCase()})` : ""} · {meterOf(track)} · bass: {track.bass.name.toLowerCase()}
+          Key: {keyName(track)} · {FEEL_LABEL[track.drums.feel]}{track.drums.name !== FEEL_LABEL[track.drums.feel] ? ` (${track.drums.name.toLowerCase()})` : ""} · {meterOf(track)} · bass: {track.bass.name.toLowerCase()}
         </p>
       </div>
 
@@ -428,7 +428,9 @@ export function LoopPlayer({
 
       <div className="space-y-2 border-t border-line pt-4">
         <p className="text-sm">
-          <span className="text-faint">Solo with </span>
+          <span className="text-faint">Key: </span>
+          <strong>{keyName(track)}</strong>
+          <span className="text-faint"> · solo with </span>
           <strong>{track.root} {scaleLabel(track.mode)}</strong>
           <span className="text-faint"> over </span>
           <span className="font-mono">{progressionText(track)}</span>

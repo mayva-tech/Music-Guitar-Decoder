@@ -16,7 +16,7 @@
 import type { TheoryEvent } from "@/lib/theory/content";
 import type { Sound } from "@/lib/theory/ear";
 import { parseChord, type ParsedChord } from "./chordSymbol";
-import { SCALE_KINDS, type ScaleMode, type ScaleRoot } from "./scaleFretmap";
+import { SCALE_KINDS, scaleModeKeyLabel, tonalKeyName, type ScaleMode, type ScaleRoot } from "./scaleFretmap";
 
 /* ------------------------------------------------------------------ types */
 
@@ -638,19 +638,17 @@ export const tracksFor = (genre: GenreId) => TRACKS.filter((t) => t.genre === ge
 
 /* ---------------------------------------------------------- descriptions */
 
-const MAJORISH: ScaleMode[] = ["major", "major-pentatonic", "lydian", "mixolydian"];
 export function scaleLabel(mode: ScaleMode): string {
+  const short = scaleModeKeyLabel(mode);
   return {
-    major: "major scale", minor: "natural minor", "major-pentatonic": "major pentatonic", "minor-pentatonic": "minor pentatonic",
-    blues: "blues scale", "harmonic-minor": "harmonic minor", "melodic-minor": "melodic minor", dorian: "Dorian",
-    mixolydian: "Mixolydian", phrygian: "Phrygian", lydian: "Lydian", locrian: "Locrian",
-  }[mode];
+    major: "major scale",
+    minor: "natural minor",
+    blues: "blues scale",
+  }[mode as "major" | "minor" | "blues"] ?? short;
 }
 /** "A minor", "D major", "E blues", "D Dorian"… */
 export function keyName(t: Pick<BackingTrack, "root" | "mode">): string {
-  if (t.mode === "blues") return `${t.root} blues`;
-  if (t.mode === "dorian" || t.mode === "mixolydian" || t.mode === "phrygian") return `${t.root} ${scaleLabel(t.mode)}`;
-  return `${t.root} ${MAJORISH.includes(t.mode) ? "major" : "minor"}`;
+  return tonalKeyName(t.root, t.mode);
 }
 export function meterOf(t: BackingTrack): "4/4" | "3/4" | "12/8" {
   if (t.drums.beats === 3) return "3/4";

@@ -6,7 +6,10 @@ import { PageTitle } from "@/components/AppShell";
 import { EarFretNeck } from "@/components/ear/EarFretNeck";
 import { LickPicker } from "@/components/greats/LickPicker";
 import { IconPlay, IconStop } from "@/components/Icons";
+import { KeyChip } from "@/components/KeyChip";
+import { LeadToneSelector } from "@/components/LeadToneSelector";
 import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
+import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { LickTab } from "@/components/solo/LickTab";
 import { LickNeck, chordListFor, mapRequestForLick, type MapRequest } from "@/components/solo/shared";
 import { useSoloAudio } from "@/components/solo/useSoloAudio";
@@ -20,7 +23,8 @@ import { getTheoryPlayer } from "@/lib/theory/player";
 export default function GuitarGreatsPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
-  const leadTone = hydrated ? storedTone : "clean";
+  const setPrefs = useApp((s) => s.setPrefs);
+  const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
   const audio = useSoloAudio(leadTone);
   const [id, setId] = useState(GREATS[0]!.id);
   const [pick, setPick] = useState<string | null>(null);
@@ -63,9 +67,12 @@ export default function GuitarGreatsPage() {
         title="Guitar greats"
         lead="How eight great players sound, and how to get there yourself: their signature chord shapes and licks on the fretboard, ready to hear and pick note by note."
       >
-        <div className="flex flex-wrap gap-2">
-          <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
-          <Link href="/learn/caged" className="btn btn-quiet btn-sm">CAGED map</Link>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
+            <Link href="/learn/caged" className="btn btn-quiet btn-sm">CAGED map</Link>
+          </div>
+          <LeadToneSelector value={leadTone} onChange={(t) => setPrefs({ leadTone: t })} testId="greats-tone" compact hint={false} />
         </div>
       </PageTitle>
 
@@ -235,6 +242,7 @@ function GreatLickCard({ item, great, audio, picking, onPick, onMap }: {
     <article className="surface flex min-w-0 flex-col gap-3 p-4" data-hl-scope={lick.id} data-testid={`greats-lick-${lick.id}`}>
       <div>
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          <KeyChip root={lick.root} mode={lick.mode} />
           {lick.tags.map((t) => <span key={t} className="chip text-xs">{t}</span>)}
           <span className="chip text-xs">over {over}</span>
           <span className="chip text-xs">{lick.bpm} BPM</span>

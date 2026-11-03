@@ -6,7 +6,8 @@ import { IconPlay, IconStop } from "@/components/Icons";
 import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
 import { BarTimeline } from "@/components/solo/shared";
 import { LickTab } from "@/components/solo/LickTab";
-import { buildFretmap } from "@/lib/music/scaleFretmap";
+import { KeyChip } from "@/components/KeyChip";
+import { buildFretmap, keyOfLabel } from "@/lib/music/scaleFretmap";
 import { lickWindow } from "@/lib/music/soloGuide";
 import {
   barChords,
@@ -14,7 +15,6 @@ import {
   phraseNotes,
   type DiagonalLick,
 } from "@/lib/music/diagonalLicks";
-import { modeName } from "./LickChooser";
 import { SpeedTrainer, type TrainerState } from "./SpeedTrainer";
 import { playKey, type DiagonalAudio } from "./useDiagonalAudio";
 
@@ -87,12 +87,13 @@ export function DiagonalPractice({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
           <div className="mb-1 flex flex-wrap gap-1.5">
+            <KeyChip root={lick.root} mode={lick.mode} />
             {lick.tags.map((t) => <span key={t} className="chip text-xs">{t}</span>)}
             <span className="chip text-xs">{dl.level}</span>
           </div>
           <h2 id="dg-practice-title" className="display text-2xl md:text-3xl">{lick.title}</h2>
           <p className="text-sm text-muted">
-            {lick.root} {modeName(lick.mode)} · {lick.bpm} BPM · over {bars.join(" ")}
+            {keyOfLabel(lick.root, lick.mode)} · {lick.bpm} BPM · over {bars.join(" ")}
           </p>
           <p className="mt-2 text-[0.98rem] leading-relaxed">{dl.summary}</p>
         </div>

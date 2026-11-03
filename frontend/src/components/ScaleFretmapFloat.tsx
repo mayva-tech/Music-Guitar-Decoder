@@ -18,6 +18,7 @@ import {
   relatedScaleChords,
   scaleDisplayName,
   scaleNoteNames,
+  tonalKeyName,
   type RelatedChord,
   type ScaleMode,
   type ScaleRoot,
@@ -405,6 +406,8 @@ export function ScaleFretmapFloat({
       </div>
 
       <p className="border-b border-line px-3 py-2 text-sm text-muted" data-testid="scale-fretmap-legend">
+        <span className="font-semibold text-ink">Key: {tonalKeyName(root, mode)}</span>
+        {" · "}
         <span className="font-semibold text-ink">{scaleDisplayName(root, mode)}</span>
         {" · "}
         {notes.join(" · ")}

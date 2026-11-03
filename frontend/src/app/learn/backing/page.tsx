@@ -7,10 +7,12 @@ import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { GenreIntro, GenrePicker, LoopPlayer, TrackList } from "@/components/backing/BackingParts";
 import { SoloGuide } from "@/components/backing/SoloGuide";
 import { useBackingAudio, type LoopSettings } from "@/components/backing/useBackingAudio";
+import { LeadToneSelector } from "@/components/LeadToneSelector";
 import {
   GENRES, GENRES_BY_ID, TRACKS_BY_ID, chordsOf, tracksFor,
   type BackingTrack, type GenreId, type TempoBand,
 } from "@/lib/music/backingTracks";
+import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { BOX_MODES } from "@/lib/music/soloGuide";
 import { guideLick, type LickStyle } from "@/lib/music/backingSolo";
 import { useApp, useHydrated } from "@/lib/store";
@@ -41,7 +43,8 @@ export default function BackingTracksPage() {
   const audio = useBackingAudio(scopeRef);
   const hydrated = useHydrated();
   const storedTone = useApp((st) => st.prefs.leadTone);
-  const leadTone = hydrated ? storedTone : "clean";
+  const setPrefs = useApp((st) => st.setPrefs);
+  const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
   const [lickStyle, setLickStyle] = useState<LickStyle>("long");
   const [lickOn, setLickOn] = useState(false);
   const [genreId, setGenreId] = useState<GenreId>("rock");
@@ -150,9 +153,21 @@ export default function BackingTracksPage() {
         title="Backing tracks"
         lead={`Drum and bass loops to play guitar over: ${GENRES.length} genres, 20 loops each (${total} in all), from slow grooves to fast ones. Every loop shows its chords, its scale and the lessons that go with it.`}
       >
-        <div className="flex flex-wrap gap-2">
-          <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
-          <Link href="/riffs" className="btn btn-quiet btn-sm">Riff practice</Link>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
+            <Link href="/riffs" className="btn btn-quiet btn-sm">Riff practice</Link>
+          </div>
+          <LeadToneSelector
+            value={leadTone}
+            onChange={(t) => {
+              setPrefs({ leadTone: t });
+              if (audio.playingId === track.id) startLoop(track, { ...settings, leadTone: t });
+            }}
+            testId="backing-tone"
+            compact
+            hint={false}
+          />
         </div>
       </PageTitle>
 

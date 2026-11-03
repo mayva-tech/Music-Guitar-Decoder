@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { LeadToneSelector } from "@/components/LeadToneSelector";
+import type { LeadTone } from "@/lib/audio/leadTone";
 
-export type LeadTone = "clean" | "crunch";
+export type { LeadTone };
 
 export function SoloHero({
   leadTone,
@@ -30,27 +32,7 @@ export function SoloHero({
           <Link href="/learn/greats" className="btn btn-quiet btn-sm">Guitar greats</Link>
         </div>
       </div>
-      <div>
-        <p className="mb-1.5 text-xs text-muted" id="lead-tone-label">Lead tone</p>
-        <div role="radiogroup" aria-labelledby="lead-tone-label" className="flex gap-1 rounded-full bg-panel-2 p-1" data-testid="lead-tone">
-          {(["clean", "crunch"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={leadTone === t}
-              data-testid={`lead-tone-${t}`}
-              onClick={() => onLeadTone(t)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize ${
-                leadTone === t ? "bg-maple text-tolex" : "text-muted hover:text-ink"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1.5 max-w-[16rem] text-xs text-faint">Crunch adds a little amp drive to the lead voice. Applies from the next note you play.</p>
-      </div>
+      <LeadToneSelector value={leadTone} onChange={onLeadTone} />
     </header>
   );
 }

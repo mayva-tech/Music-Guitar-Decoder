@@ -37,7 +37,7 @@ export function TheoryPanel({ arr, current, part }: { arr: Arrangement; current:
     <section className="mt-6 surface p-4 md:p-6" aria-labelledby="theory-h" data-testid="theory-panel">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="theory-h" className="text-lg font-bold">Why it sounds like {t.genre_label.toLowerCase()}</h2>
-        <p className="text-sm text-muted">{arr.key.name}, {t.feel === "shuffle" ? "shuffle feel" : "straight eighths"}</p>
+        <p className="text-sm text-muted">Key: {arr.key.name} · {t.feel === "shuffle" ? "shuffle feel" : "straight eighths"}</p>
       </div>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-3">

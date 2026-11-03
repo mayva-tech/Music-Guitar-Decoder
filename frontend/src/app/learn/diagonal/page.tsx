@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { DiagonalPractice } from "@/components/diagonal/DiagonalPractice";
 import { LickChooser } from "@/components/diagonal/LickChooser";
 import { playKey, useDiagonalAudio } from "@/components/diagonal/useDiagonalAudio";
+import { LeadToneSelector } from "@/components/LeadToneSelector";
 import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { SectionHead, chordListFor } from "@/components/solo/shared";
+import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { DIAGONAL_BY_ID, DIAGONAL_IDEAS, DIAGONAL_LICKS, PRACTICE_STEPS } from "@/lib/music/diagonalLicks";
 import { useApp, useHydrated } from "@/lib/store";
 
@@ -15,7 +17,7 @@ const FIRST = DIAGONAL_LICKS[0]!.lick.id;
 export default function DiagonalLicksPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
-  const leadTone = hydrated ? storedTone : "clean";
+  const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
   const setPrefs = useApp((s) => s.setPrefs);
   const audio = useDiagonalAudio(leadTone);
   const [selected, setSelected] = useState(FIRST);
@@ -47,7 +49,7 @@ export default function DiagonalLicksPage() {
           <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: "var(--lane-song)" }}>Speed with a melody</p>
           <h1 className="display text-[2rem] md:text-[2.6rem]">Diagonal licks</h1>
           <p className="mt-2 text-[1.05rem] leading-relaxed text-muted">
-            Six 20-second licks that travel across the neck instead of up and down one box. Each one is a small solo with a tune:
+            Sixteen 20-second licks that travel across the neck instead of up and down one box. Each one is a small solo with a tune:
             a theme, the theme moved up the neck, a fast phrase, then a peak that comes home. Learn the melody first, then build the speed.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -57,23 +59,12 @@ export default function DiagonalLicksPage() {
             <Link href="/learn/backing" className="btn btn-quiet btn-sm">Backing tracks</Link>
           </div>
         </div>
-        <div>
-          <p className="mb-1.5 text-xs text-muted" id="dg-tone-label">Lead tone</p>
-          <div role="radiogroup" aria-labelledby="dg-tone-label" className="flex gap-1 rounded-full bg-panel-2 p-1" data-testid="dg-tone">
-            {(["clean", "crunch"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="radio"
-                aria-checked={leadTone === t}
-                onClick={() => setPrefs({ leadTone: t })}
-                className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize ${leadTone === t ? "bg-maple text-tolex" : "text-muted hover:text-ink"}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
+        <LeadToneSelector
+          value={leadTone}
+          onChange={(t) => setPrefs({ leadTone: t })}
+          testId="dg-tone"
+          compact
+        />
       </header>
 
       <section aria-labelledby="dg-why-heading" className="space-y-4">
@@ -92,8 +83,8 @@ export default function DiagonalLicksPage() {
       </section>
 
       <section aria-labelledby="dg-licks-heading" className="space-y-4">
-        <SectionHead id="dg-licks-heading" eyebrow="Lick library" title="Six licks, 20 seconds each">
-          Rock, blues, country, hard rock, a ballad and pop. Each plays with drums, bass and chords. All are original, written for this app.
+        <SectionHead id="dg-licks-heading" eyebrow="Lick library" title="Sixteen licks, 20 seconds each">
+          Set 1 stays in pentatonic and blues scales (rock, blues, country, hard rock, a ballad, pop). Set 2 adds funk, southern rock, metal, Latin, Celtic, neo-soul, rockabilly, fusion, pop-punk and slow blues, with Dorian, Mixolydian, major, minor and harmonic-minor lines. Each plays with drums, bass and chords. All are original, written for this app.
         </SectionHead>
         <LickChooser licks={DIAGONAL_LICKS} selected={dl.lick.id} onSelect={select} />
       </section>

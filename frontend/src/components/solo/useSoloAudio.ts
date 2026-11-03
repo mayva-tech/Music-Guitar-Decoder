@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setHighlight } from "@/components/theory/highlight";
+import type { LeadTone } from "@/lib/audio/leadTone";
 import { jamExample, LICKS_BY_ID, lickExample, type JamTrack, type Lick } from "@/lib/music/soloGuide";
 import { getTheoryPlayer } from "@/lib/theory/player";
 
@@ -33,7 +34,7 @@ export interface SoloAudio {
  * One transport for the whole workshop: starting anything stops whatever played before,
  * leaving the page stops everything. Backing + lead go through the shared Theory player.
  */
-export function useSoloAudio(leadTone: "clean" | "crunch"): SoloAudio {
+export function useSoloAudio(leadTone: LeadTone): SoloAudio {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [jamBar, setJamBar] = useState<number | null>(null);
   const token = useRef(0);

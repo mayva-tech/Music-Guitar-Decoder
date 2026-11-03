@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyChip } from "@/components/KeyChip";
 import { BarTimeline, mapRequestForLick, SectionHead, type ShowMap } from "./shared";
 import { LickTab } from "./LickTab";
 import type { SoloAudio } from "./useSoloAudio";
@@ -35,7 +36,8 @@ export function FullSolo({ audio, onShowMap }: { audio: SoloAudio; onShowMap: Sh
           >
             Follow on fretboard
           </button>
-          <span className="text-xs text-muted">{SOLO.bpm} BPM · A minor pentatonic</span>
+          <KeyChip root={SOLO.root} mode={SOLO.mode} />
+          <span className="text-xs text-muted">{SOLO.bpm} BPM</span>
         </div>
         <BarTimeline bars={bars} sections={SOLO_SECTIONS} activeLabel="Nine-bar solo timeline" />
         <LickTab notes={SOLO.notes} barsPerRow={3} />
