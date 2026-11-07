@@ -184,6 +184,44 @@ A, E, Bm, B7, B♭ and F7 to the solo backing (`SOLO_VOICINGS`, `SOLO_BASS`, `CH
 
 Content lives in `frontend/src/lib/music/backingTracks.ts` (patterns as step strings, so adding a loop is one line).
 
+## What's new in v5: blues-rock riffs and licks to solo over
+
+**20 original blues-rock parts, about 20 seconds each** (8 riffs and 12 licks), each written over its own chord
+progression. Pick *Blues rock* under Type on Riff practice (or open `/riffs?source=blues_rock`). Every card shows the
+chords bar by bar; *Practise this riff* opens it with the band playing those chords, an easier version, and a lead to
+jam over. Turn on Loop to keep the progression going and solo over it.
+
+| Name | Type | Key, tempo | Length | Chords to solo over | Level |
+|---|---|---|---|---|---|
+| Texas Two-Step | Shuffle riff | E major, 144 BPM | 12 bars, 20 s | E7×4 A7×2 E7×2 B7 A7 E7 B7 | Medium |
+| Down-Home Boogie | Boogie riff | A major, 140 BPM | 12 bars, 21 s | A7 D7 A7×2 D7×2 A7×2 E7 D7 A7 E7 | Medium |
+| Iron Horse | Hard-rock riff | E minor, 96 BPM | 8 bars, 20 s | E5×4 A5×2 (G5 A5) B5 | Easy |
+| Dust Devil | Stomp riff | A minor, 100 BPM | 8 bars, 19 s | A5×2 D5×2 A5×2 (C5 D5) E5 | Easy |
+| Mudslide | Slide riff | G major, 96 BPM | 8 bars, 20 s | G7 C7 G7×2 D7 C7 G7 D7 | Medium |
+| Stomp Box | Minor-blues riff | D minor, 144 BPM | 12 bars, 20 s | Dm×4 Gm×2 Dm×2 Am Gm Dm Am | Easy |
+| Southern Rail | Southern-rock riff | D major, 100 BPM | 8 bars, 19 s | D×2 C×2 G×2 D A | Medium |
+| Thunder Pump | Sixteenth riff | F# minor, 92 BPM | 8 bars, 21 s | F#5×2 B5×2 F#5×2 (A5 E5) C#5 | Harder |
+| First Box | Shuffle lick | A major, 96 BPM | 8 bars, 20 s | A7 D7 A7×2 E7 D7 A7 E7 | Medium |
+| Open E Rumble | Open-position lick | E major, 144 BPM | 12 bars, 20 s | E7×4 A7×2 E7×2 B7 A7 E7 B7 | Medium |
+| Call and Response | Rock lick | B minor, 92 BPM | 8 bars, 21 s | B5 A5 E5 B5×2 A5 E5 F#5 | Medium |
+| Sweet Spot | Slow-blues lick | C major, 72 BPM | 6 bars, 20 s | C7 F7 C7 G7 F7 C7 | Medium |
+| Sixteenth Cascade | Fast rock lick | E minor, 92 BPM | 8 bars, 21 s | Em×2 C D Em×2 C B7 | Harder |
+| Major Moves | Rock 'n' roll lick | A major, 144 BPM | 12 bars, 20 s | A7×4 D7×2 A7×2 E7 D7 A7 E7 | Medium |
+| Rolling Thunder | Legato lick | G minor, 96 BPM | 8 bars, 20 s | Gm F Eb F Gm F Eb F | Harder |
+| Minor Blues Cry | Slow minor-blues lick | D minor, 72 BPM | 6 bars, 20 s | Dm Gm Dm A7 Gm Dm | Medium |
+| Slide Highway | Slide lick | G major, 100 BPM | 8 bars, 19 s | G5 F5 C5 G5×2 F5 C5 G5 | Medium |
+| Bend City | Bending lick | B minor, 92 BPM | 8 bars, 21 s | Bm A G F#7 Bm A G F#7 | Harder |
+| Highway Twang | Country-rock lick | D major, 100 BPM | 8 bars, 19 s | D×2 C×2 G×2 D A | Medium |
+| Peak Hour | High-register lick | A minor, 96 BPM | 8 bars, 20 s | Am F G Am×2 F G E7 | Harder |
+
+The blues ones swing (shuffle feel, 7th chords); the rock ones are straight. Southern Rail and Highway Twang share a
+progression, as do Texas Two-Step and Open E Rumble, so you can play the riff and then the lick over the same changes.
+**Embers** (A minor, 66 BPM, 4 bars), the slow rock-ballad lick, is in the same set.
+
+Parts are written as TAB tokens in `backend/app/music/blues_rock.py`, e.g. `3:7b2~=1.5` = G string, fret 7, whole-step
+bend with vibrato, 1½ beats. Bars are checked to last exactly 4 beats when the module loads. Riff notes can set the
+fretting finger with `fin`; bends are fretted with the ring finger.
+
 ## What's new in v4: modern-style riffs and finger animation
 
 **10 original riffs in modern styles.** These are written for this app, not taken from any song. Use the *Modern styles*
@@ -201,6 +239,7 @@ filter on Riff practice to find them:
 | Tide Pool Tremolo | Surf | Rock | Harder | A minor, 120 BPM | Tremolo picking, a descending melody, light alternate picking |
 | Back Porch Pickin' | Country | Pop | Medium | G major, 110 BPM | Hammer-ons, pull-offs, major pentatonic runs |
 | Velvet Slide | Neo-soul | Pop | Harder | E minor, 72 BPM | Slides, pull-offs, smooth vocal phrasing |
+
 
 Rhythmic feels (gallops, sixteenths, tremolo picking, offbeat stabs) are written out note by note, so the TAB, the
 playback and the mic feedback all agree.
@@ -318,8 +357,8 @@ Limits: 0.5–30 s, 15 MB. 5–15 s works best.
 ## Tests
 
 ```bash
-cd backend  && python3 -m pytest                 # 250 tests: theory, positions, TAB, harmony, genres, solos & techniques, riffs, API, audio
-cd frontend && npm test                          # 75 tests: tuning, fretboard & hand geometry, hand animation, TAB, YIN, swing timing, mic errors, persistence
+cd backend  && python3 -m pytest                 # 379 tests: theory, positions, TAB, harmony, genres, solos & techniques, riffs, API, audio
+cd frontend && npm test                          # 294 tests: tuning, fretboard & hand geometry, hand animation, TAB, YIN, swing timing, mic errors, persistence
 cd frontend && npm run typecheck && npm run build
 cd frontend && npm run test:e2e                  # 20 browser tests (desktop + Pixel 7); needs both servers running
 ```

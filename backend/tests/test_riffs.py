@@ -98,3 +98,89 @@ def test_rhythmic_feels_are_written_out():
     assert {n.midi for n in tremolo} == {64} and all(n.duration_beats == .25 for n in tremolo)
     reggae = riff_notes(RIFFS_BY_ID["offbeat-sunrise"])
     assert reggae[0].start_beat == .5  # leaves beat 1 empty
+
+
+def test_ballad_lick_embers():
+    r = RIFFS_BY_ID["embers"]
+    assert r.genre == "rock" and r.style == "ballad" and r.vibe == "Rock-ballad lick" and r.source == "original"
+    assert r.collection == "blues_rock"
+    notes = riff_notes(r)
+    info = next(i for i in list_riffs() if i.id == "embers")
+    assert {"bend_release", "pull_off", "slide_up", "vibrato"} <= set(info.techniques)
+    # Each bend releases back to its fretted note after a whole step up to the chord's root (A, D, A).
+    bends = [n for n in notes if n.technique == "bend_release"]
+    assert [(n.start_beat, (n.midi + n.bend_semitones) % 12) for n in bends] == [(0, 9), (4, 2), (12, 9)]
+    # Slides follow on from the previous note on the same string.
+    slides = [n for n in notes if n.technique == "slide_up"]
+    assert [(n.slide_from_fret, n.fret) for n in slides] == [(7, 10), (12, 15)]
+    # Ends on a long A with vibrato.
+    assert notes[-1].name.startswith("A") and notes[-1].vibrato and notes[-1].start_beat + notes[-1].duration_beats == 16
+    arr = build_riff_arrangement("embers", "intermediate")
+    assert arr.theory.feel == "straight" and [c.symbol for c in arr.harmonization.chords][:2] == ["Am", "Dm"]
+    # Bends use the ring finger (written into the riff), not the automatic pinky.
+    assert [n.finger for n in bends] == [3, 3, 3]
+
+
+# ------------------------------------------------------------------ blues-rock collection
+
+from app.music.blues_rock import BLUES_ROCK, TWENTY, _progression, _tab  # noqa: E402
+
+
+def test_blues_rock_collection_has_twenty_twenty_second_parts():
+    assert len(TWENTY) == 20 and len({r.id for r in TWENTY}) == 20
+    assert all(r.collection == "blues_rock" and r.source == "original" and r.vibe for r in BLUES_ROCK)
+    for r in TWENTY:
+        seconds = r.bars * 4 * 60 / r.tempo
+        assert 19 <= seconds <= 21, (r.id, seconds)
+    kinds = [("lick" in r.vibe.lower()) for r in TWENTY]
+    assert kinds.count(False) == 8 and kinds.count(True) == 12  # 8 riffs, 12 licks
+    assert {r.genre for r in TWENTY} == {"rock", "blues"}
+    assert len({(r.tonic, r.mode) for r in TWENTY}) >= 10  # spread across keys
+    # The blues ones swing and use 7th chords; the rock ones are straight.
+    for r in TWENTY:
+        arr = build_riff_arrangement(r.id, "intermediate")
+        assert arr.theory.feel == ("shuffle" if r.genre == "blues" else "straight")
+        assert len(arr.harmonization.chords) >= 3  # a real progression to solo over
+        assert arr.lead.notes  # a lead to jam over the same chords
+
+
+def test_blues_rock_parts_end_each_bar_on_time_and_cover_the_chords():
+    for r in TWENTY:
+        assert abs(sum(c.length for c in r.chords) - r.bars * 4) < 1e-6
+        notes = riff_notes(r)
+        assert notes[-1].start_beat + notes[-1].duration_beats <= r.bars * 4 + 1e-6
+        for n in notes:
+            assert n.fret <= 20
+
+
+def test_blues_rock_techniques_and_fingers():
+    info = {i.id: i for i in list_riffs()}
+    assert all(info[r.id].collection == "blues_rock" for r in BLUES_ROCK)
+    assert info["texas-two-step"].bar_chords == ["E7"] * 4 + ["A7"] * 2 + ["E7"] * 2 + ["B7", "A7", "E7", "B7"]
+    assert info["iron-horse"].bar_chords[6] == "G5 A5"
+    assert all(len(i.bar_chords) == i.bars for i in info.values())
+    used = set().union(*(info[r.id].techniques for r in TWENTY))
+    assert {"bend", "bend_release", "hammer_on", "pull_off", "slide_up", "slide_down", "vibrato"} <= used
+    for r in TWENTY:
+        for n in riff_notes(r):
+            if n.technique in ("bend", "bend_release"):
+                assert n.finger == 3, (r.id, n.start_beat)
+    # The texas shuffle hammers the b3 into the 3rd on every chord.
+    texas = riff_notes(RIFFS_BY_ID["texas-two-step"])
+    assert sum(1 for n in texas if n.technique == "hammer_on") == 24
+
+
+def test_tab_notation_parser():
+    notes, bars = _tab("3:7b2~=1.5 2:5 2:8 2:5 3:7=1 | 1:5 1:/8=1 - 4:0 4:h2=1.5 | 2:8r2=4")
+    assert bars == 3 and len(notes) == 10
+    assert notes[0] == ("E4", 0.0, 1.5, {"s": 3, "f": 7, "tech": "bend", "bend": 2, "fin": 3, "vib": True})
+    assert notes[6] == ("C5", 4.5, 1.0, {"s": 1, "f": 8, "tech": "slide_up"})
+    assert notes[8] == ("E3", 6.5, 1.5, {"s": 4, "f": 2, "tech": "hammer_on"})  # after the rest
+    assert notes[9] == ("G4", 8.0, 4.0, {"s": 2, "f": 8, "tech": "bend_release", "bend": 2, "fin": 3})  # fretted pitch
+    with pytest.raises(ValueError):
+        _tab("2:5 2:7")  # half a bar
+    with pytest.raises(ValueError):
+        _tab("2:5x=4")
+    prog = _progression("E7 A7 E7 E7 G5,A5", "E", "minor")
+    assert [(c.symbol_root, c.quality, c.start, c.length) for c in prog] == [
+        ("E", "7", 0, 4), ("A", "7", 4, 4), ("E", "7", 8, 8), ("G", "5", 16, 2), ("A", "5", 18, 2)]

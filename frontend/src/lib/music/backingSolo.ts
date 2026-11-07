@@ -4,7 +4,8 @@
  *
  * The lick stays in one position (pentatonic box 1, or a five-fret window for seven-note scales),
  * lands on a chord tone at every chord change and leads into the next chord with a scale step,
- * so it shows *when* and *where* to move as the chords change.
+ * so it shows *when* and *where* to move as the chords change. Each loop gets its own lick: a seed made from the
+ * loop's id picks the rhythms, contour, register, target notes and techniques, so no two loops play the same line.
  */
 import { MAX_FRET, STANDARD_TUNING } from "./guitar";
 import { BOX_MODES, buildLick, pentatonicBox } from "./soloGuide";
@@ -160,38 +161,83 @@ export type LickStyle = "long" | "beat" | "phrase";
 export const LICK_STYLES: { id: LickStyle; label: string; hint: string }[] = [
   { id: "long", label: "Long notes", hint: "Hold a chord tone through each chord, then step into the next one." },
   { id: "beat", label: "On the beat", hint: "One note per beat: chord tones on the strong beats, scale steps between." },
-  { id: "phrase", label: "Phrased", hint: "Short eighth-note phrases that call and answer, with space between." },
+  { id: "phrase", label: "Phrased", hint: "Short eighth-note phrases (sixteenths on 16th-note grooves) that call and answer, with space between." },
 ];
 
-type Role = "T" | "s" | "c" | "A";
-type Slot = [beat: number, dur: number, role: Role];
+type Role = "T" | "s" | "w" | "k" | "r" | "c" | "A";
+/** A rhythm cell: [start beat, length] pairs inside one chord segment (written straight; swung later). */
+type Cell = [beat: number, dur: number][];
 
-function template(style: LickStyle, len: number, k: number): Slot[] {
-  const L = len >= 4 ? 4 : len >= 3 ? 3 : 2;
-  const T: Record<LickStyle, Record<2 | 3 | 4, Slot[]>> = {
-    long: {
-      4: [[0, 2, "T"], [2, 1.5, "c"], [3.5, 0.5, "A"]],
-      3: [[0, 2, "T"], [2, 1, "A"]],
-      2: [[0, 1.5, "T"], [1.5, 0.5, "A"]],
-    },
-    beat: {
-      4: [[0, 1, "T"], [1, 1, "s"], [2, 1, "c"], [3, 1, "A"]],
-      3: [[0, 1, "T"], [1, 1, "s"], [2, 1, "A"]],
-      2: [[0, 1, "T"], [1, 1, "A"]],
-    },
-    phrase: k % 2 === 0
-      ? {
-        4: [[0, 0.5, "T"], [0.5, 0.5, "s"], [1, 0.5, "s"], [1.5, 1, "c"], [3.5, 0.5, "A"]],
-        3: [[0, 0.5, "T"], [0.5, 0.5, "s"], [1, 1, "c"], [2.5, 0.5, "A"]],
-        2: [[0, 0.5, "T"], [0.5, 0.5, "s"], [1, 0.5, "c"], [1.5, 0.5, "A"]],
-      }
-      : {
-        4: [[0, 1.5, "T"], [2, 0.5, "s"], [2.5, 0.5, "s"], [3, 0.5, "c"], [3.5, 0.5, "A"]],
-        3: [[0, 1.5, "T"], [2, 0.5, "s"], [2.5, 0.5, "A"]],
-        2: [[0, 0.5, "T"], [0.5, 0.5, "s"], [1, 0.5, "c"], [1.5, 0.5, "A"]],
-      },
+/* Seeded random numbers: each loop's lick is fixed (same every time it opens) but different from every other loop's. */
+function hashSeed(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+type Rng = { next: () => number; pick: <T>(xs: readonly T[]) => T; chance: (p: number) => boolean };
+function seeded(text: string): Rng {
+  let a = hashSeed(text);
+  const next = () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
-  return T[style][L as 2 | 3 | 4];
+  return { next, pick: (xs) => xs[Math.floor(next() * xs.length)]!, chance: (p) => next() < p };
+}
+
+/** Rhythm cells for each style and segment length (4 = a 4/4 bar, 3 = a 3/4 bar, 2 = half a 4/4 bar). */
+const CELLS: Record<LickStyle, Record<number, Cell[]>> = {
+  long: {
+    4: [[[0, 4]], [[0, 2], [2, 1.5], [3.5, 0.5]], [[0, 3], [3, 1]], [[0, 2.5], [3, 1]], [[0, 1.5], [2, 2]], [[0, 2], [2, 2]],
+      [[0, 3.5], [3.5, 0.5]], [[0, 1.5], [1.5, 2.5]], [[0, 2], [3, 1]], [[0, 3], [3.5, 0.5]], [[0, 1], [1, 2], [3, 1]],
+      [[0, 2.5], [2.5, 1], [3.5, 0.5]]],
+    3: [[[0, 3]], [[0, 2], [2, 1]], [[0, 1.5], [2, 1]], [[0, 2.5], [2.5, 0.5]], [[0, 1], [1, 2]]],
+    2: [[[0, 2]], [[0, 1.5], [1.5, 0.5]], [[0, 1], [1, 1]]],
+  },
+  beat: {
+    4: [[[0, 1], [1, 1], [2, 1], [3, 1]], [[0, 1], [1, 1], [2, 2]], [[0, 2], [2, 1], [3, 1]], [[0, 1], [2, 1], [3, 1]],
+      [[0, 1], [1, 2], [3, 1]], [[0, 1], [1, 1], [3, 1]], [[0, 3], [3, 1]], [[0, 1], [1, 1], [2, 1]], [[0, 2], [3, 1]],
+      [[0, 1], [2, 2]]],
+    3: [[[0, 1], [1, 1], [2, 1]], [[0, 2], [2, 1]], [[0, 1], [1, 2]], [[0, 1], [2, 1]]],
+    2: [[[0, 1], [1, 1]], [[0, 2]]],
+  },
+  phrase: {
+    4: [[[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 1], [3.5, 0.5]], [[0, 1.5], [2, 0.5], [2.5, 0.5], [3, 0.5], [3.5, 0.5]],
+      [[0, 0.5], [0.5, 0.5], [1, 1], [2.5, 0.5], [3, 0.5], [3.5, 0.5]], [[0, 1], [1.5, 0.5], [2, 0.5], [2.5, 1.5]],
+      [[0, 0.5], [1, 0.5], [1.5, 0.5], [2, 1.5], [3.5, 0.5]], [[0, 0.5], [0.5, 1], [1.5, 0.5], [2, 0.5], [3, 1]],
+      [[0, 1], [1, 0.5], [1.5, 0.5], [2, 0.5], [2.5, 0.5], [3, 1]], [[0, 2], [2.5, 0.5], [3, 0.5], [3.5, 0.5]],
+      [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 0.5], [2, 2]], [[0, 1.5], [1.5, 0.5], [2, 1], [3.5, 0.5]],
+      [[0, 0.5], [0.5, 0.5], [1.5, 0.5], [2, 0.5], [2.5, 1.5]], [[0, 1], [1, 1], [2, 0.5], [2.5, 0.5], [3.5, 0.5]]],
+    3: [[[0, 0.5], [0.5, 0.5], [1, 1], [2.5, 0.5]], [[0, 1], [1, 0.5], [1.5, 0.5], [2, 1]], [[0, 1.5], [2, 0.5], [2.5, 0.5]],
+      [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 1.5]], [[0, 0.5], [1, 0.5], [1.5, 0.5], [2, 1]]],
+    2: [[[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 0.5]], [[0, 1], [1, 0.5], [1.5, 0.5]], [[0, 0.5], [0.5, 1], [1.5, 0.5]],
+      [[0, 1.5], [1.5, 0.5]]],
+  },
+};
+/** Extra phrased cells with sixteenth notes, for straight sixteenth-note grooves (funk, metal, …). */
+const SIXTEENTH_CELLS: Record<number, Cell[]> = {
+  4: [[[0, 0.25], [0.25, 0.25], [0.5, 0.5], [1, 1], [2, 0.5], [2.5, 0.5], [3, 1]],
+    [[0, 0.5], [0.75, 0.25], [1, 0.5], [1.5, 0.5], [2, 1.5], [3.5, 0.5]],
+    [[0, 0.25], [0.25, 0.25], [0.5, 0.25], [0.75, 0.25], [1, 1], [2.5, 0.5], [3, 1]],
+    [[0, 1], [1.5, 0.25], [1.75, 0.25], [2, 0.5], [2.5, 0.5], [3, 0.75], [3.75, 0.25]]],
+  3: [[[0, 0.25], [0.25, 0.25], [0.5, 0.5], [1, 1], [2, 1]]],
+  2: [[[0, 0.25], [0.25, 0.25], [0.5, 0.5], [1, 1]]],
+};
+/** Ways to move between the chord-tone target and the approach note of a segment. */
+const CONTOURS: Role[][] = [["s"], ["w", "s"], ["r", "s"], ["k"], ["c"], ["c", "w"], ["s", "s"], ["w", "c"], ["k", "w"], ["r", "c"]];
+/** Genres whose licks may bend a held chord tone up and back. */
+const BEND_GENRES = new Set(["blues", "rock", "metal", "country", "soul", "punk"]);
+
+function cellsFor(t: BackingTrack, style: LickStyle, len: number): Cell[] {
+  const key = len >= 4 ? 4 : len >= 3 ? 3 : 2;
+  const base = (CELLS[style][key] ?? [[[0, len]]]).filter((c) => c.every(([b, d]) => b + d <= len + 1e-6));
+  const extra = style === "phrase" && !t.drums.triplet && t.drums.feel === "sixteenths" ? SIXTEENTH_CELLS[key] ?? [] : [];
+  const cells = [...base, ...extra];
+  return cells.length ? cells : [[[0, len]]];
 }
 
 export interface ChordSegment { chord: string; start: number; len: number; bar: number }
@@ -217,8 +263,10 @@ function swingBeat(x: number, triplet: boolean): number {
 
 /**
  * A lick over the whole loop: lands on a chord tone at every change (a guide tone — 3rd or 7th — in the
- * "Long notes" style), moves by scale steps, and approaches the next chord's target from a step away.
- * Notes are ordered in time; start beats are relative to the start of the loop.
+ * "Long notes" style), moves by small steps, skips and chord tones, and usually approaches the next chord's target
+ * from a step away. The rhythm changes from chord to chord (sometimes echoing an earlier one, like call and answer),
+ * and bends, slides, hammer-ons and pull-offs come in where the notes allow. Notes are ordered in time; start beats
+ * are relative to the start of the loop.
  */
 export function guideLick(t: BackingTrack, style: LickStyle): PlayableNote[] {
   const pos = soloPosition(t);
@@ -226,6 +274,8 @@ export function guideLick(t: BackingTrack, style: LickStyle): PlayableNote[] {
   const n = L.length;
   const segs = chordSegments(t);
   const chords = segs.map((s) => parseChord(s.chord)!);
+  const rng = seeded(`${t.id}|${style}|${t.name}`);
+  const clamp = (i: number) => Math.max(0, Math.min(n - 1, i));
 
   const tonesOf = (c: ParsedChord, guide: boolean): number[] => {
     // Prefer notes inside the position; fall back to the edges if that is all the chord has here.
@@ -253,47 +303,86 @@ export function guideLick(t: BackingTrack, style: LickStyle): PlayableNote[] {
     }
     return [best];
   };
-  const nearest = (cands: number[], from: number, avoid?: number): number => {
-    const sorted = [...cands].sort((a, b) => Math.abs(a - from) - Math.abs(b - from) || a - b);
-    const alt = sorted.find((i) => i !== avoid && Math.abs(i - from) <= 3);
-    return avoid != null && alt != null ? alt : sorted[0]!;
+  /** A random candidate close to `from` (closer ones more likely), avoiding `avoid` when there is a choice. */
+  const choose = (cands: number[], from: number, maxDist: number, avoid?: number): number => {
+    let near = cands.filter((i) => Math.abs(i - from) <= maxDist && i !== avoid);
+    if (!near.length) near = cands.filter((i) => Math.abs(i - from) <= maxDist);
+    if (!near.length) return [...cands].sort((a, b) => Math.abs(a - from) - Math.abs(b - from) || a - b)[0]!;
+    const w = near.map((i) => 1 / (1 + Math.abs(i - from)));
+    let r = rng.next() * w.reduce((a, b) => a + b, 0);
+    for (let k = 0; k < near.length; k++) if ((r -= w[k]!) <= 0) return near[k]!;
+    return near[near.length - 1]!;
   };
 
-  // Targets for every chord segment, voice-led from the middle of the position.
-  const start = Math.round((n - 1) * 0.45);
+  // Chord-tone targets for every segment: start anywhere in the position, then voice-lead within three steps.
   const targets: number[] = [];
   segs.forEach((_, i) => {
-    const prev = i === 0 ? start : targets[i - 1]!;
-    targets.push(nearest(tonesOf(chords[i]!, style === "long"), prev, i === 0 ? undefined : prev));
+    const tones = tonesOf(chords[i]!, style === "long");
+    targets.push(i === 0 ? rng.pick(tones) : choose(tones, targets[i - 1]!, 3, rng.chance(0.85) ? targets[i - 1] : undefined));
   });
 
+  const bendOk = BEND_GENRES.has(t.genre);
   const triplet = t.drums.triplet;
-  const specs: { s: number; f: number; b: number; d: number; t: "" | "h" | "p" | "vib" }[] = [];
+  const specs: { s: number; f: number; b: number; d: number; t: "" | "h" | "p" | "vib" | "slide" | "br"; bend?: 1 | 2 }[] = [];
+  const used: { cell: Cell; contour: Role[] }[] = [];
   let p = targets[0]!;
   segs.forEach((seg, i) => {
     const next = targets[(i + 1) % segs.length]!;
-    const slots = template(style, seg.len, i);
-    slots.forEach(([b, d, role], k) => {
+    const pool = cellsFor(t, style, seg.len);
+    // A new rhythm for each chord until the pool runs out. Long loops (8+ chords) sometimes echo the rhythm of
+    // four chords back, like a call and its answer, but always with a different melody.
+    let cell: Cell;
+    const echo = segs.length >= 8 ? used[i - 4] : undefined;
+    if (echo && pool.includes(echo.cell) && echo.cell !== used[i - 1]?.cell && rng.chance(0.3)) cell = echo.cell;
+    else {
+      const unused = pool.filter((c) => !used.some((u) => u.cell === c));
+      const notLast = pool.filter((c) => c !== used[i - 1]?.cell);
+      cell = rng.pick(unused.length ? unused : notLast.length ? notLast : pool);
+    }
+    const contour = rng.pick(CONTOURS.filter((c) => c !== used[i - 1]?.contour));
+    used.push({ cell, contour });
+    const endsOnApproach = rng.chance(0.75);
+    cell.forEach(([b, d], k) => {
+      const last = k === cell.length - 1 && k > 0;
+      const role: Role = k === 0 ? "T" : last ? (endsOnApproach ? "A" : "c") : contour[(k - 1) % contour.length]!;
+      const dir = next > p ? 1 : next < p ? -1 : p > n / 2 ? -1 : 1;
       let idx: number;
       if (role === "T") idx = targets[i]!;
-      else if (role === "A") idx = p < next ? next - 1 : p > next ? next + 1 : Math.min(n - 1, next + 1);
-      else if (role === "c") {
-        // A chord tone within three scale steps (towards the next target if possible), else just a step.
-        const tones = tonesOf(chords[i]!, false).filter((x) => x !== p && Math.abs(x - p) <= 3);
-        const towards = tones.filter((x) => (next >= p ? x > p : x < p));
-        idx = tones.length ? nearest(towards.length ? towards : tones, p) : p + (next > p ? 1 : next < p ? -1 : p > n / 2 ? -1 : 1);
-      } else idx = p + (next > p ? 1 : next < p ? -1 : p > n / 2 ? -1 : 1);
-      idx = Math.max(0, Math.min(n - 1, idx));
+      else if (role === "A") {
+        // Approach the next target from a step below or above (the side we are coming from, usually).
+        const side = p < next ? -1 : p > next ? 1 : rng.chance(0.5) ? 1 : -1;
+        idx = next + (rng.chance(0.8) ? side : -side);
+        if (idx === next || idx < 0 || idx > n - 1) idx = next + (next > 0 ? -1 : 1);
+      } else if (role === "c") {
+        // A chord tone close by; on the last note it must also sit within two steps of the next target.
+        let tones = tonesOf(chords[i]!, false).filter((x) => x !== p && Math.abs(x - p) <= 3);
+        if (last) tones = tones.filter((x) => Math.abs(x - next) <= 2);
+        idx = tones.length ? rng.pick(tones) : last ? next + (p < next ? -1 : 1) : p + dir;
+      } else if (role === "w") idx = p - dir;
+      else if (role === "k") idx = p + 2 * dir;
+      else if (role === "r") idx = p;
+      else idx = p + dir;
+      idx = clamp(idx);
+      if (role !== "T") {
+        // Stay within reach: no wide leaps, and never wander more than three steps from the next target.
+        if (role !== "A" && Math.abs(idx - next) > 3) idx = clamp(p + dir);
+        if (Math.abs(L[idx]!.midi - L[p]!.midi) > 9) idx = clamp(p + (idx > p ? 1 : -1));
+      }
       const at = L[idx]!;
       const startB = swingBeat(seg.start + b, triplet);
       const endB = swingBeat(seg.start + b + d, triplet);
       const prevSpec = specs[specs.length - 1];
-      let tech: "" | "h" | "p" | "vib" = "";
-      if (d >= 1.5) tech = "vib";
-      else if (prevSpec && k > 0 && prevSpec.s === at.string && d <= 0.5 && startB - prevSpec.b <= 0.7 && prevSpec.f !== at.fret) {
-        tech = at.fret > prevSpec.f ? "h" : "p";
-      }
-      specs.push({ s: at.string, f: at.fret, b: startB, d: Math.max(0.2, (endB - startB) * 0.95), t: tech });
+      const gap = prevSpec ? startB - prevSpec.b : Infinity;
+      let tech: "" | "h" | "p" | "vib" | "slide" | "br" = "";
+      let bend: 1 | 2 | undefined;
+      const sameString = !!prevSpec && k > 0 && prevSpec.s === at.string && prevSpec.f !== at.fret;
+      if (role === "T" && d >= 1 && bendOk && at.string <= 3 && rng.chance(style === "long" ? 0.3 : 0.18)) {
+        tech = "br";
+        bend = rng.chance(0.6) ? 2 : 1;
+      } else if (sameString && d <= 0.5 && gap <= 0.7) tech = at.fret > prevSpec!.f ? "h" : "p";
+      else if (sameString && Math.abs(at.fret - prevSpec!.f) >= 2 && Math.abs(at.fret - prevSpec!.f) <= 4 && rng.chance(0.4)) tech = "slide";
+      else if (d >= 1.5) tech = "vib";
+      specs.push({ s: at.string, f: at.fret, b: startB, d: Math.max(0.2, (endB - startB) * 0.95), t: tech, ...(bend ? { bend } : {}) });
       p = idx;
     });
   });

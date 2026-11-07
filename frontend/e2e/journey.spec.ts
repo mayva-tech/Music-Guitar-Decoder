@@ -235,6 +235,23 @@ test("riff practice: pick a riff, practise it with TAB, techniques and an easy v
   expect(Math.max(...frets)).toBeLessThanOrEqual(3);
 });
 
+test("blues-rock riffs and licks: filter, chords to solo over, practise with the band", async ({ page }) => {
+  await onboard(page);
+  await page.goto("/riffs?source=blues_rock");
+  await expect(page.locator('[data-testid^="riff-"]')).toHaveCount(21);
+  await expect(page.getByTestId("vibe-texas-two-step")).toHaveText("Shuffle riff");
+  await expect(page.getByTestId("chords-texas-two-step")).toContainText("E7 ×4 · A7 ×2 · E7 ×2 · B7 · A7 · E7 · B7");
+  await expect(page.getByTestId("chords-iron-horse")).toContainText("(G5 A5)");
+  // The set is not mixed into Modern styles.
+  await page.getByRole("radiogroup", { name: "Type" }).getByRole("radio", { name: "Modern styles" }).click();
+  await expect(page.getByTestId("riff-texas-two-step")).toHaveCount(0);
+  await page.getByRole("radiogroup", { name: "Type" }).getByRole("radio", { name: "Blues rock" }).click();
+  await page.getByTestId("practise-first-box").click();
+  await page.waitForURL("**/learn");
+  await expect(page.getByTestId("part-melody")).toHaveText("The riff");
+  await expect(page.getByTestId("riff-tips")).toContainText("A minor pentatonic box at fret 5");
+});
+
 test("modern-style riffs and animated finger changes", async ({ page }) => {
   await onboard(page);
   await page.goto("/riffs");

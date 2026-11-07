@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChordDiagram } from "@/components/ChordDiagram";
 import { LickPicker } from "@/components/greats/LickPicker";
 import { IconPlay, IconStop } from "@/components/Icons";
-import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
+import { KeyChip } from "@/components/KeyChip";
+import { ScrollablePracticeNeck } from "@/components/ScrollablePracticeNeck";
 import { BarTimeline } from "@/components/solo/shared";
 import { LickTab } from "@/components/solo/LickTab";
-import { KeyChip } from "@/components/KeyChip";
-import { buildFretmap, keyOfLabel } from "@/lib/music/scaleFretmap";
-import { lickWindow } from "@/lib/music/soloGuide";
+import { voicingsFor } from "@/lib/music/backingSolo";
 import {
   barChords,
   fretSpan,
   phraseNotes,
   type DiagonalLick,
 } from "@/lib/music/diagonalLicks";
+import { buildFretmap, keyOfLabel } from "@/lib/music/scaleFretmap";
 import { SpeedTrainer, type TrainerState } from "./SpeedTrainer";
 import { playKey, type DiagonalAudio } from "./useDiagonalAudio";
 
@@ -35,18 +36,26 @@ export function DiagonalPractice({
   const [marks, setMarks] = useState(false);
   const [picking, setPicking] = useState(false);
   const [trainer, setTrainer] = useState<TrainerState>({ pct: 100, loop: false, ramp: false, countIn: false });
+  const [voicingIdx, setVoicingIdx] = useState<Record<string, number>>({});
 
   // A new lick starts from the whole lick, closed picker.
   useEffect(() => {
     setPart(null);
     setPicking(false);
+    setVoicingIdx({});
   }, [lick.id]);
 
   const cells = useMemo(() => buildFretmap(lick.root, lick.mode), [lick.root, lick.mode]);
-  const win = useMemo(() => lickWindow(lick.notes), [lick.notes]);
   const melody = useMemo(() => new Set(dl.melody), [dl.melody]);
   const neckLick = useMemo(() => ({ notes: lick.notes, compact: !marks, route: true, accent: melody }), [lick.notes, marks, melody]);
   const bars = useMemo(() => barChords(dl), [dl]);
+  const chords = useMemo(() => [...new Set(bars)], [bars]);
+  const phraseChords = useMemo(() => {
+    if (part == null) return null;
+    const p = dl.phrases[part];
+    if (!p) return null;
+    return new Set(bars.slice(p.bars[0], p.bars[0] + p.bars[1]));
+  }, [part, dl.phrases, bars]);
   const sections = useMemo(
     () => dl.phrases.map((p) => [p.bars[0], p.bars[1], p.label] as [number, number, string]),
     [dl.phrases],
@@ -124,12 +133,13 @@ export function DiagonalPractice({
       </div>
 
       <div className="space-y-2">
-        {/* A 20-second lick spans 10–20 frets: on phones the neck keeps a readable size and scrolls inside its box. */}
-        <div className="scroll-x min-w-0 overflow-x-auto rounded-xl bg-tolex/40 p-1" data-testid="dg-neck">
-          <div style={{ minWidth: `${(win.to - win.from + 1) * 2.4}rem` }}>
-            <ScaleFretmapNeck cells={cells} root={lick.root} mode={lick.mode} box={0} lick={neckLick} fretWindow={win} />
-          </div>
-        </div>
+        <ScrollablePracticeNeck
+          cells={cells}
+          root={lick.root}
+          mode={lick.mode}
+          lick={neckLick}
+          data-testid="dg-neck"
+        />
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
           <p className="flex flex-wrap gap-x-4 gap-y-1">
             <span><span className="font-bold" style={{ color: "var(--color-next)" }}>···</span> route across the neck</span>
@@ -144,6 +154,66 @@ export function DiagonalPractice({
       </div>
 
       <BarTimeline bars={bars} sections={sections} activeLabel={`${lick.title} bar timeline`} />
+
+      <div className="space-y-2 border-t border-line pt-4" data-testid="dg-chords">
+        <div>
+          <h3 className="font-bold">Chord shapes in this lick</h3>
+          <p className="text-xs text-muted">
+            The three notes under each shape are the triad to land on. ◀ ▶ moves to a lower or higher voicing.
+            {phraseChords ? " Shapes for the phrase you picked are highlighted." : null}
+          </p>
+        </div>
+        <ul className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[900px]:grid-cols-4 xl:grid-cols-6">
+          {chords.map((c) => {
+            const vs = voicingsFor(c);
+            const i = Math.min(voicingIdx[c] ?? 0, Math.max(0, vs.length - 1));
+            const v = vs[i];
+            const inPhrase = phraseChords ? phraseChords.has(c) : false;
+            const set = (d: number) =>
+              setVoicingIdx((m) => ({ ...m, [c]: Math.max(0, Math.min(vs.length - 1, i + d)) }));
+            return (
+              <li
+                key={c}
+                className="flex flex-col items-center gap-1 rounded-xl border p-2"
+                data-testid={`dg-chord-${c}`}
+                style={{
+                  borderColor: inPhrase ? "var(--color-next)" : "var(--color-line)",
+                  background: inPhrase ? "var(--color-panel-2)" : undefined,
+                }}
+              >
+                {v ? <ChordDiagram name={c} diagram={v.shape} size={1.1} /> : (
+                  <p className="py-8 font-bold">{c}</p>
+                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-panel-2 ring-1 ring-line hover:bg-line disabled:opacity-35"
+                    aria-label={`Lower ${c} shape`}
+                    disabled={i <= 0}
+                    onClick={() => set(-1)}
+                    data-testid={`dg-chord-${c}-down`}
+                  >
+                    ◀
+                  </button>
+                  <span className="min-w-[4.5rem] text-center font-mono text-[0.7rem] text-muted" data-testid={`dg-chord-${c}-label`}>
+                    {v ? `${v.label} · ${i + 1}/${vs.length}` : "—"}
+                  </span>
+                  <button
+                    type="button"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-panel-2 ring-1 ring-line hover:bg-line disabled:opacity-35"
+                    aria-label={`Higher ${c} shape`}
+                    disabled={i >= vs.length - 1}
+                    onClick={() => set(1)}
+                    data-testid={`dg-chord-${c}-up`}
+                  >
+                    ▶
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button

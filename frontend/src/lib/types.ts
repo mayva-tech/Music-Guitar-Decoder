@@ -170,6 +170,8 @@ export interface RiffInfo {
   year: number | null;
   genre: Genre;
   vibe: string;
+  /** Named set the riff belongs to, e.g. "blues_rock" ("" for none). */
+  collection?: string;
   difficulty: number;
   focus: string[];
   tips: string[];
@@ -179,6 +181,8 @@ export interface RiffInfo {
   note_count: number;
   techniques: string[];
   tab_preview: string;
+  /** Chord(s) in each bar, e.g. ["E7", "G5 A5"]. */
+  bar_chords?: string[];
 }
 
 export interface Arrangement {

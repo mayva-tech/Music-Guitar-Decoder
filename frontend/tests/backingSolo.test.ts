@@ -122,11 +122,75 @@ describe("suggested lick", () => {
     }
   });
 
+  it("gives every loop its own melody: no two licks alike in any style", () => {
+    // Compare transposition-free shapes (intervals + rhythm), so the same line in another key still counts as a copy.
+    const shapeOf = (lick: ReturnType<typeof guideLick>) =>
+      lick.map((n, i) => `${i ? n.midi - lick[i - 1]!.midi : 0}@${n.start_beat.toFixed(3)}/${n.duration_beats.toFixed(2)}`).join(" ");
+    for (const s of LICK_STYLES) {
+      const seen = new Map<string, string>();
+      for (const t of TRACKS) {
+        const key = shapeOf(guideLick(t, s.id));
+        expect(seen.get(key), `${t.id} ${s.id} copies ${seen.get(key)}`).toBeUndefined();
+        seen.set(key, t.id);
+      }
+    }
+    for (const t of TRACKS) {
+      const shapes = LICK_STYLES.map((s) => shapeOf(guideLick(t, s.id)));
+      expect(new Set(shapes).size, t.id).toBe(LICK_STYLES.length);
+    }
+  });
+
+  it("writes different rhythms and pitches for loops that share a key and progression", () => {
+    const groups = new Map<string, typeof TRACKS>();
+    for (const t of TRACKS) {
+      const k = `${t.root} ${t.mode} ${t.bars.join("|")}`;
+      groups.set(k, [...(groups.get(k) ?? []), t]);
+    }
+    const shared = [...groups.values()].filter((g) => g.length > 1);
+    expect(shared.length).toBeGreaterThan(0);
+    for (const g of shared) {
+      for (const s of LICK_STYLES) {
+        const licks = g.map((t) => guideLick(t, s.id));
+        const rhythms = licks.map((l) => l.map((n) => `${n.start_beat.toFixed(3)}/${n.duration_beats.toFixed(2)}`).join());
+        const pitches = licks.map((l) => l.map((n) => n.midi).join());
+        expect(new Set(rhythms).size, `${g.map((t) => t.id)} ${s.id}`).toBe(g.length);
+        expect(new Set(pitches).size, `${g.map((t) => t.id)} ${s.id}`).toBe(g.length);
+      }
+    }
+  });
+
+  it("varies the rhythm from bar to bar and stays the same each time a loop is opened", () => {
+    for (const t of TRACKS) {
+      const beats = t.drums.beats;
+      for (const s of LICK_STYLES) {
+        const lick = guideLick(t, s.id);
+        expect(guideLick(t, s.id)).toEqual(lick);
+        if (t.bars.length < 4) continue;
+        const barRhythms = new Set(t.bars.map((_, b) => lickBar(lick, b, beats).notes.map((n) => `${n.start_beat.toFixed(2)}/${n.duration_beats.toFixed(2)}`).join()));
+        expect(barRhythms.size, `${t.id} ${s.id}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("uses slides, bends and legato across the loops, and only bends in bluesy genres", () => {
+    const techs = new Set<string>();
+    for (const t of TRACKS) {
+      for (const s of LICK_STYLES) {
+        for (const n of guideLick(t, s.id)) {
+          if (n.technique) techs.add(n.technique);
+          if (n.technique === "bend_release") expect(["blues", "rock", "metal", "country", "soul", "punk"], t.id).toContain(t.genre);
+        }
+      }
+    }
+    expect([...techs].sort()).toEqual(["bend_release", "hammer_on", "pull_off", "slide_down", "slide_up"]);
+  });
+
   it("splits into bars for the live neck", () => {
     const t = TRACKS[0]!;
     const lick = guideLick(t, "beat");
     const b1 = lickBar(lick, 1, 4);
-    expect(b1.notes).toHaveLength(4);
+    expect(b1.notes).toHaveLength(lick.filter((n) => n.start_beat >= 4 && n.start_beat < 8).length);
+    expect(b1.notes.length).toBeGreaterThanOrEqual(1);
     expect(b1.notes[0]!.start_beat).toBe(0);
     expect(lick[b1.first]!.start_beat).toBe(4);
   });

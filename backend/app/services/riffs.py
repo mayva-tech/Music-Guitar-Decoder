@@ -47,7 +47,7 @@ def riff_notes(r: RiffDef) -> list[NoteEvent]:
     out: list[NoteEvent] = []
     for i, ((midi, start, dur, opts, _), s, f) in enumerate(zip(specs, strings, frets)):
         tech = opts.get("tech")
-        finger = fingers[i]
+        finger = opts.get("fin", fingers[i]) if f else 0
         slide_from = None
         if tech in ("slide_up", "slide_down"):
             slide_from = frets[i - 1]
@@ -77,13 +77,25 @@ def _harmonization(r: RiffDef, key: Key) -> Harmonization:
                          progression_name=progression_name(genre, romans))
 
 
+_SUFFIX = {"maj": "", "min": "m", "5": "5", "7": "7"}
+
+
+def bar_chords(r: RiffDef, bpb: int = 4) -> list[str]:
+    """The chord symbols in each bar, as written in the riff (half-bar changes appear together)."""
+    out = []
+    for b in range(r.bars):
+        names = [c.symbol_root + _SUFFIX[c.quality] for c in r.chords if c.start < (b + 1) * bpb and c.start + c.length > b * bpb]
+        out.append(" ".join(names))
+    return out
+
+
 def riff_info(r: RiffDef) -> RiffInfo:
     notes = riff_notes(r)
     techniques = sorted({n.technique for n in notes if n.technique} | ({"vibrato"} if any(n.vibrato for n in notes) else set()))
-    return RiffInfo(id=r.id, title=r.title, credit=r.credit, source=r.source, year=r.year, genre=r.genre, vibe=r.vibe,
+    return RiffInfo(id=r.id, title=r.title, credit=r.credit, source=r.source, year=r.year, genre=r.genre, vibe=r.vibe, collection=r.collection,
                     difficulty=r.difficulty, focus=list(r.focus), tips=list(r.tips), tempo_bpm=r.tempo,
                     key_name=_key(r).name, bars=r.bars, note_count=len(notes), techniques=techniques,
-                    tab_preview=render_tab(notes, 4, r.bars))
+                    tab_preview=render_tab(notes, 4, r.bars), bar_chords=bar_chords(r))
 
 
 def list_riffs() -> list[RiffInfo]:

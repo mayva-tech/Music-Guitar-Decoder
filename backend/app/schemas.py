@@ -254,6 +254,7 @@ class RiffInfo(BaseModel):
     year: Optional[int] = None
     genre: Genre
     vibe: str = ""
+    collection: str = ""
     difficulty: int = Field(ge=1, le=3)
     focus: list[str]
     tips: list[str]
@@ -263,6 +264,7 @@ class RiffInfo(BaseModel):
     note_count: int = 0
     techniques: list[str] = []
     tab_preview: str = ""
+    bar_chords: list[str] = Field(default_factory=list, description="Chord(s) in each bar, e.g. ['E7', 'G5 A5']")
 
 
 class Arrangement(BaseModel):

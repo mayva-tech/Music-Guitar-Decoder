@@ -3,16 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { IconPlay, IconStop } from "@/components/Icons";
-import { ScaleFretmapNeck } from "@/components/ScaleFretmapNeck";
+import { KeyChip } from "@/components/KeyChip";
+import { ScrollablePracticeNeck } from "@/components/ScrollablePracticeNeck";
 import { LickTab } from "@/components/solo/LickTab";
 import { LICK_STYLES, lickBar, nextChange, soloPosition, voicingsFor, type LickStyle } from "@/lib/music/backingSolo";
-import { KeyChip } from "@/components/KeyChip";
 import { chordsOf, scaleLabel, type BackingTrack, type Genre } from "@/lib/music/backingTracks";
 import { buildFretmap } from "@/lib/music/scaleFretmap";
 import type { PlayableNote } from "@/lib/types";
 import type { BackingAudio } from "./useBackingAudio";
-
-type Zoom = "position" | "neck";
 
 export function SoloGuide({
   track, genre, audio, lick, lickStyle, onLickStyle, lickOn, onLickOn, onPlay,
@@ -32,7 +30,7 @@ export function SoloGuide({
   const playing = audio.playingId === track.id;
   const live = playing && !audio.countingIn && audio.bar != null;
   const [previewBar, setPreviewBar] = useState(0);
-  const [zoom, setZoom] = useState<Zoom>("position");
+  const [marks, setMarks] = useState(false);
   const [shapeOn, setShapeOn] = useState<string | null>(null);
   const [voicingIdx, setVoicingIdx] = useState<Record<string, number>>({});
 
@@ -50,10 +48,8 @@ export function SoloGuide({
   // While a loop is sounding, show the lick that was scheduled for that bar — not a newer style the user just picked.
   const shownLick = live && audio.soundingLick ? audio.soundingLick : lick;
 
-  // Chord-change timing (countdown text only — rings stay on the chord that is sounding now).
   const at = bar * beats + beat;
   const change = nextChange(track, at);
-  const ringChord = change.current;
 
   const { notes: barNotes, first } = useMemo(() => lickBar(shownLick, bar, beats), [shownLick, bar, beats]);
   const lit = useMemo(() => {
@@ -61,31 +57,18 @@ export function SoloGuide({
     return k != null && k >= first && k < first + barNotes.length && playing ? new Set([k - first]) : new Set<number>();
   }, [audio.litNote, first, barNotes.length, playing]);
 
-  // Live neck: only the note(s) sounding right now — not the rest of the bar's lick (that reads as "next").
-  const neckNotes = useMemo(() => {
-    if (!live || beat == null) return barNotes;
-    const active = barNotes.filter(
-      (n) => beat >= n.start_beat - 1e-6 && beat < n.start_beat + n.duration_beats - 1e-9,
-    );
-    if (active.length) return active;
-    let held: PlayableNote[] = [];
-    for (const n of barNotes) if (n.start_beat <= beat + 1e-6) held = [n];
-    return held;
-  }, [live, beat, barNotes]);
-  const neckLit = useMemo(
-    () => (live ? new Set(neckNotes.map((_, i) => i)) : lit),
-    [live, neckNotes, lit],
+  // Whole lick on the neck (diagonal style); light the note sounding now — no “next” ghost.
+  const neckLick = useMemo(
+    () => (shownLick.length ? { notes: shownLick, compact: !marks, route: true } : null),
+    [shownLick, marks],
   );
+  const litNotes = useMemo(() => {
+    if (!playing || audio.litNote == null) return undefined;
+    return new Set([audio.litNote]);
+  }, [playing, audio.litNote]);
 
   const shapeVoicings = shapeOn ? voicingsFor(shapeOn) : [];
   const shape = shapeOn ? shapeVoicings[Math.min(voicingIdx[shapeOn] ?? 0, shapeVoicings.length - 1)]?.shape ?? null : null;
-  const shapeWindow = useMemo(() => {
-    if (!shape) return null;
-    const fs = shape.frets.filter((f): f is number => f != null);
-    const from = Math.max(0, Math.min(...fs) - 1);
-    return { from, to: Math.max(from + 6, Math.max(...fs) + 2) };
-  }, [shape]);
-  const neckWindow = zoom === "neck" ? { from: 0, to: 15 } : shapeWindow ?? pos.window;
 
   const total = len * beats;
   const playhead = ((bar * beats + beat + (live ? 0.5 : 0)) / total) * 100;
@@ -98,8 +81,8 @@ export function SoloGuide({
           <h2 id="solo-guide-heading" className="display text-2xl">Solo over {track.name}</h2>
           <div className="mt-1"><KeyChip root={track.root} mode={track.mode} /></div>
           <p className="mt-1 text-sm leading-relaxed text-muted">
-            {track.root} {scaleLabel(track.mode)}{pos.box ? ", box 1" : ""}, frets {pos.window.from}–{pos.window.to}. Ringed notes are the
-            chord sounding now. While the loop plays, the neck shows only the lick note you should play at that moment.
+            {track.root} {scaleLabel(track.mode)}{pos.box ? ", box 1" : ""}, frets {pos.window.from}–{pos.window.to}.
+            Color-coded scale notes with the suggested lick routed across the neck — notes light up as they sound.
           </p>
         </div>
         <button type="button" className="btn btn-primary" aria-pressed={playing} data-testid="guide-toggle" onClick={() => (playing ? audio.stop() : onPlay())}>
@@ -122,14 +105,6 @@ export function SoloGuide({
           className={`chip text-xs ${lickOn ? "bg-maple text-tolex" : "text-muted hover:bg-panel-2"}`}>
           Play lick with loop: {lickOn ? "on" : "off"}
         </button>
-        <div className="ml-auto flex gap-1.5" role="radiogroup" aria-label="Zoom">
-          {([["position", "Lick position"], ["neck", "Whole neck"]] as const).map(([z, label]) => (
-            <button key={z} type="button" role="radio" aria-checked={zoom === z} data-testid={`guide-zoom-${z}`} onClick={() => setZoom(z)}
-              className={`chip text-xs ${zoom === z ? "bg-panel-2 text-ink" : "text-muted hover:bg-panel-2"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
       <p className="text-xs text-faint">{LICK_STYLES.find((s) => s.id === lickStyle)?.hint}</p>
 
@@ -162,7 +137,7 @@ export function SoloGuide({
         </div>
         <div className="flex flex-wrap items-center gap-3" data-testid="guide-countdown" aria-live="off">
           {change.inBeats === Infinity ? (
-            <p className="text-sm text-muted">One chord all the way: no changes to aim for. Ringed notes are {change.current}.</p>
+            <p className="text-sm text-muted">One chord all the way: no changes to aim for.</p>
           ) : live ? (
             <>
               <p className="text-sm">
@@ -182,38 +157,39 @@ export function SoloGuide({
             <p className="text-sm text-muted">
               Bar {bar + 1}: <strong className="text-ink">{track.bars[bar]}</strong>
               {change.chord !== change.current ? <> · next change to <strong className="text-ink">{change.chord}</strong> in {Math.ceil(change.inBeats)} beats</> : null}.
-              {" "}Tap a bar to preview its notes, or press Play.
+              {" "}Tap a bar to preview its TAB, or press Play.
             </p>
           )}
         </div>
       </div>
 
-      {/* The live neck, zoomed to the lick position so it is tall enough to read */}
-      <div className="overflow-x-auto" data-testid="guide-neck">
-        <div className={`mx-auto ${zoom === "neck" ? "min-w-[760px]" : "min-w-[540px] max-w-[1000px]"}`}>
-          <ScaleFretmapNeck
-            cells={cells}
-            root={track.root}
-            mode={track.mode}
-            box={shape ? 0 : pos.box}
-            chordTones={shape ? null : ringChord}
-            chordShape={shape}
-            lick={shape ? null : { notes: neckNotes, compact: live }}
-            litNotes={neckLit}
-            fretWindow={neckWindow}
-          />
+      <div className="space-y-2">
+        <ScrollablePracticeNeck
+          cells={cells}
+          root={track.root}
+          mode={track.mode}
+          lick={shape ? null : neckLick}
+          litNotes={shape ? undefined : litNotes}
+          chordShape={shape}
+          data-testid="guide-neck"
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+          {shape ? (
+            <span>Showing the {shapeOn} shape with fingers. <button type="button" className="underline" onClick={() => setShapeOn(null)}>Back to the lick</button></span>
+          ) : (
+            <>
+              <p className="flex flex-wrap gap-x-4 gap-y-1">
+                <span><span className="font-bold" style={{ color: "var(--color-next)" }}>···</span> route across the neck</span>
+                <span><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink align-middle" /> melody note</span>
+                <span>Notes light up as they sound</span>
+              </p>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={marks} onChange={(e) => setMarks(e.target.checked)} data-testid="guide-marks" />
+                Show order and technique marks
+              </label>
+            </>
+          )}
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        {shape ? (
-          <span>Showing the {shapeOn} shape with fingers. <button type="button" className="underline" onClick={() => setShapeOn(null)}>Back to the lick</button></span>
-        ) : (
-          <>
-            <span><span className="inline-block h-3 w-3 rounded-full border-2 align-middle" style={{ borderColor: "var(--color-maple)" }} /> Chord tones now ({ringChord})</span>
-            <span><span className="inline-block h-3 w-3 rounded-full bg-maple align-middle" /> {live ? "Lick note to play now" : "Lick notes, numbered in order"}</span>
-            {pos.box ? <span>Faded: scale notes outside box 1</span> : null}
-          </>
-        )}
       </div>
 
       {!shape && barNotes.length > 0 && (

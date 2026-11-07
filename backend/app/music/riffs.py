@@ -9,51 +9,12 @@ Copyrighted songs are deliberately NOT transcribed here. To practise a riff from
 the learner hums it into the recorder and Music Decoder builds the part from their audio.
 
 Note format: (note name, start beat, duration in beats, options)
-options: s/f = string/fret (else the position optimiser chooses), tech = technique,
-bend = semitones, vib = vibrato. For a bend, the note name is the pitch you hear.
+options: s/f = string/fret (else the position optimiser chooses), fin = fretting finger (else assigned
+automatically), tech = technique, bend = semitones, vib = vibrato. For a bend, the note name is the pitch you hear.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
-N = tuple  # (name, start, dur, opts?)
-
-
-@dataclass(frozen=True)
-class ChordSpec:
-    symbol_root: str   # note name of the root, e.g. "A"
-    quality: str       # maj | min | 5 | 7
-    roman: str
-    start: float
-    length: float
-
-
-@dataclass(frozen=True)
-class RiffDef:
-    id: str
-    title: str
-    credit: str
-    source: str              # "public_domain" | "original"
-    year: int | None
-    genre: str               # rock | pop | blues
-    style: str               # backing style
-    difficulty: int          # 1 easy – 3 harder
-    tempo: float
-    tonic: str
-    mode: str
-    position_level: str      # comfort zone for automatically chosen positions
-    focus: tuple[str, ...]
-    tips: tuple[str, ...]
-    notes: tuple[N, ...]
-    chords: tuple[ChordSpec, ...]
-    bars: int = 4
-    power_chords: bool = False
-    vibe: str = ""            # style the original riff is written in (e.g. "Grunge")
-    extra: dict = field(default_factory=dict)
-
-
-def _c(root, quality, roman, start, length):
-    return ChordSpec(root, quality, roman, start, length)
+from .riff_model import ChordSpec, N, RiffDef, _c  # noqa: F401  (re-exported)
 
 
 RIFFS: tuple[RiffDef, ...] = (
@@ -413,6 +374,8 @@ MODERN_RIFFS: tuple[RiffDef, ...] = (
     ),
 )
 
-RIFFS = RIFFS + MODERN_RIFFS
+from .blues_rock import BLUES_ROCK  # noqa: E402
+
+RIFFS = RIFFS + MODERN_RIFFS + BLUES_ROCK
 
 RIFFS_BY_ID = {r.id: r for r in RIFFS}

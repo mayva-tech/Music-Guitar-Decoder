@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Notice, PageTitle } from "@/components/AppShell";
-import { Fretboard, type FretMarker } from "@/components/Fretboard";
 import { FingerGPS } from "@/components/FingerGPS";
 import { ExplainFloat } from "@/components/ExplainFloat";
 import { TabView, type NoteStatus } from "@/components/TabView";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { IconExpand, IconHeadphones, IconPlay, IconStop } from "@/components/Icons";
+import { ScrollablePracticeNeck } from "@/components/ScrollablePracticeNeck";
 import { api } from "@/lib/api";
 import { getEngine } from "@/lib/audio/engine";
 import { BandScorer, StablePitchTracker, judge, type BandNoteResult } from "@/lib/audio/noteMatcher";
@@ -25,7 +25,7 @@ import { articulation } from "@/lib/audio/timeline";
 import { ApiError } from "@/lib/api";
 import { phraseInsight, type Insight } from "@/lib/music/insights";
 import { LESSONS } from "@/lib/music/lessons";
-import { SCALE_ROOTS, type ScaleMode, type ScaleRoot } from "@/lib/music/scaleFretmap";
+import { buildFretmap, SCALE_ROOTS, type ScaleMode, type ScaleRoot } from "@/lib/music/scaleFretmap";
 import { degreeWords, isChordTone, midiToName, pitchClassName } from "@/lib/music/theory";
 import { useApp, useHydrated } from "@/lib/store";
 import { cancelEnglishSpeech, speakEnglish } from "@/lib/tts/speakEnglish";
@@ -67,11 +67,11 @@ export default function LearnPage() {
   const [insight, setInsight] = useState<Insight | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [summary, setSummary] = useState<{ correct: number; total: number; timing?: number | null; recs: Recommendation[]; saved: boolean } | null>(null);
-  const [zoom, setZoom] = useState(1);
   const [fullscreen, setFullscreen] = useState(false);
   const [noiseMsg, setNoiseMsg] = useState<string | null>(null);
   const [explainOpen, setExplainOpen] = useState(true);
   const [fretmapOpen, setFretmapOpen] = useState(false);
+  const [marks, setMarks] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
   const loopRef = useRef(false);
@@ -80,37 +80,35 @@ export default function LearnPage() {
   const notes: PlayableNote[] = useMemo(() => (arr ? partNotes(arr, part) : []), [arr, part]);
   const range = phrase ?? { from: 0, to: notes.length - 1 };
   const cur = notes[index] ?? null;
-  const nxt = index + 1 <= range.to ? notes[index + 1] ?? null : null;
   const bases = useMemo(() => handBases(notes), [notes]);
-  const curStatus = cur ? statuses[cur.id] : undefined;
-
-  // Stable marker objects, so the (memoised) fretboard only redraws when something really changes.
-  const labelFor = useCallback((n: PlayableNote) => {
-    if (prefs.markerLabel === "interval") return n.chord_degree ?? "";
-    if (prefs.markerLabel === "note") return n.name.replace(/-?\d+$/, "");
-    return n.fret === 0 ? "O" : String(n.finger);
-  }, [prefs.markerLabel]);
-  const curMarker = useMemo<FretMarker | null>(() => {
-    if (!cur) return null;
-    const prev = index > 0 ? notes[index - 1] : undefined;
-    return {
-      string: cur.string, fret: cur.fret, finger: cur.finger, text: labelFor(cur),
-      status: curStatus === "correct" ? "correct" : curStatus === "wrong" ? "wrong" : "target",
-      technique: cur.technique, bend: cur.bend_semitones, vibrato: cur.vibrato,
-      fromFret: cur.slide_from_fret ?? ((cur.technique === "hammer_on" || cur.technique === "pull_off") && prev?.string === cur.string ? prev.fret : null),
-    };
-  }, [cur, curStatus, index, notes, labelFor]);
-  const nextMarker = useMemo<FretMarker | null>(() => (nxt && (nxt.string !== cur?.string || nxt.fret !== cur?.fret)
-    ? { string: nxt.string, fret: nxt.fret, finger: nxt.finger, status: "next", text: labelFor(nxt) } : null), [nxt, cur, labelFor]);
+  const fretmapRoot = useMemo(
+    () => (arr ? fretmapRootFromTonic(arr.key.tonic) : "A"),
+    [arr],
+  );
+  const fretmapMode = useMemo<ScaleMode>(
+    () => (arr?.key.mode === "minor" ? "minor" : "major"),
+    [arr],
+  );
+  const cells = useMemo(() => buildFretmap(fretmapRoot, fretmapMode), [fretmapRoot, fretmapMode]);
+  const displayNotes = useMemo(
+    () => (notes.length ? notes.slice(range.from, Math.max(range.from, range.to) + 1) : []),
+    [notes, range.from, range.to],
+  );
+  const neckLick = useMemo(
+    () => (displayNotes.length ? { notes: displayNotes, compact: !marks, route: true } : null),
+    [displayNotes, marks],
+  );
+  const litNotes = useMemo(() => {
+    if (!cur || index < range.from || index > range.to) return undefined;
+    return new Set([index - range.from]);
+  }, [cur, index, range.from, range.to]);
   const moveText = useMemo(() => {
     if (!cur) return undefined;
     const prev = index > range.from ? notes[index - 1] : null;
     return fingerChange(prev, cur, prev ? bases[index - 1] : null, bases[index]);
   }, [cur, index, notes, bases, range.from]);
-  const pulseKey = cur ? `${cur.id}-${index}` : undefined;
 
-  // "Watch the fingers": step through the part slowly, sounding each note, so the hand animation
-  // shows every finger change in order.
+  // "Watch the fingers": step through the part slowly, sounding each note so the neck lights in order.
   useEffect(() => {
     if (!watching || !arr) return;
     const n = notes[index];
@@ -123,9 +121,6 @@ export default function LearnPage() {
     }, secs * 1000);
     return () => clearTimeout(t);
   }, [watching, index, notes, part, arr, range.to]);
-
-  const handProp = useMemo(() => (prefs.handOverlay && cur ? { base: bases[index] ?? 1, opacity: prefs.handOpacity } : null),
-    [prefs.handOverlay, prefs.handOpacity, bases, index, cur]);
 
   // Mutable practice state read by the microphone callback.
   const live = useRef({
@@ -438,20 +433,6 @@ export default function LearnPage() {
     hearNote(n, i);
   };
 
-  const selectFret = (string: number, fret: number) => {
-    const hits = notes.map((n, i) => ({ n, i })).filter(({ n }) => n.string === string && n.fret === fret);
-    if (hits.length) {
-      const pick = hits.find(({ i }) => i > index) ?? hits[0];
-      setIndex(pick.i);
-      setFeedback(null);
-      hearNote(pick.n, pick.i);
-    } else {
-      const midi = (({ 6: 40, 5: 45, 4: 50, 3: 55, 2: 59, 1: 64 }) as Record<number, number>)[string] + fret;
-      void getEngine().preview(midi, part === "lead" ? "solo" : part, 3.5, undefined, string);
-      setFeedback({ tone: "info", text: `That's ${midiToName(midi)}. It isn't in this part.` });
-    }
-  };
-
   const applyRec = (r: Recommendation) => {
     if (r.tempo_factor) setTempo(r.tempo_factor);
     if (r.kind === "shorter_phrase" && r.phrase_length) setPhrase({ from: 0, to: Math.min(notes.length - 1, r.phrase_length - 1) });
@@ -525,14 +506,9 @@ export default function LearnPage() {
     );
   }
 
-  const fretmapRoot = fretmapRootFromTonic(arr.key.tonic);
-  const fretmapMode: ScaleMode = arr.key.mode === "minor" ? "minor" : "major";
-
   const bpb = arr.beats_per_bar;
   const { bar, beat } = barAndBeat(cur?.start_beat ?? 0, bpb);
   const chord = chordAtBeat(arr.harmonization.chords, cur?.start_beat ?? 0)?.symbol ?? "";
-  const maxFret = Math.max(...notes.map((n) => n.fret));
-  const fretsShown = Math.max(prefs.fretsShown, Math.min(22, maxFret + 1));
   const barChords = Array.from({ length: arr.total_bars }, (_, b) => chordAtBeat(arr.harmonization.chords, b * bpb)?.symbol ?? "");
   const showText = prefs.instructionMode !== "voice" && prefs.instructionMode !== "silent";
   const uniqueChords = [...new Map(arr.harmonization.chords.map((c) => [c.symbol, c])).values()];
@@ -647,7 +623,7 @@ export default function LearnPage() {
       <div ref={stage} className={`surface p-3 md:p-4 ${fullscreen ? "overflow-auto h-dvh rounded-none" : ""}`}>
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(15.5rem,18.5rem)] lg:items-stretch">
           <div className="flex min-w-0 flex-col">
-            <FingerGPS current={cur} next={nxt} chord={chord} bar={bar} beat={beat} showText={showText} move={moveText}
+            <FingerGPS current={cur} next={null} chord={chord} bar={bar} beat={beat} showText={showText} move={moveText}
               seventh={hasSevenths} compact />
             {/* Always reserve one feedback line so appearing/clearing text does not shove the fretboard */}
             <p role="status" data-testid="feedback" title={feedback?.text ?? undefined}
@@ -730,73 +706,39 @@ export default function LearnPage() {
           />
         )}
 
-        <div className="mt-3">
-          <Fretboard
-            handedness={prefs.handedness}
-            view={prefs.viewMode}
-            frets={fretsShown}
-            equalSpacing={prefs.equalFretSpacing}
-            zoom={zoom}
-            current={curMarker}
-            next={nextMarker}
-            hand={handProp}
-            animate={prefs.animateHand}
-            pulseKey={pulseKey}
-            scale={prefs.showScale ? arr.lead?.scale_positions ?? null : null}
-            showNoteNames={prefs.showNoteNames}
-            onSelect={selectFret}
+        <div className="mt-3 space-y-2">
+          <ScrollablePracticeNeck
+            cells={cells}
+            root={fretmapRoot}
+            mode={fretmapMode}
+            lick={neckLick}
+            litNotes={litNotes}
+            data-testid="learn-neck"
           />
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+            <p className="flex flex-wrap gap-x-4 gap-y-1">
+              <span><span className="font-bold" style={{ color: "var(--color-next)" }}>···</span> route across the neck</span>
+              <span><span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink align-middle" /> melody note</span>
+              <span>Notes light up as they sound</span>
+            </p>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={marks} onChange={(e) => setMarks(e.target.checked)} data-testid="learn-marks" />
+              Show order and technique marks
+            </label>
+          </div>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-          <label className="flex items-center gap-1.5 text-muted">
-            Frets
-            <select className="field min-h-0 py-0.5 text-xs" value={prefs.fretsShown} onChange={(e) => setPrefs({ fretsShown: Number(e.target.value) })}>
-              {[5, 7, 12, 15, 22].map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </label>
           {!explainOpen && cur && (
             <button type="button" className="btn btn-quiet btn-sm" data-testid="show-explain"
               onClick={() => setExplainOpen(true)}>Show tip</button>
           )}
-          <button className="btn btn-quiet btn-sm" onClick={() => setZoom((z) => (z === 1 ? 1.4 : 1))} aria-pressed={zoom > 1}>{zoom > 1 ? "Normal" : "Zoom"}</button>
           <button className={`btn btn-sm ${watching ? "btn-primary" : "btn-quiet"}`} aria-pressed={watching} data-testid="watch-fingers"
             disabled={!!mode || playing} onClick={() => {
               if (watching) { setWatching(false); return; }
               if (index >= range.to) setIndex(range.from);
               setWatching(true);
             }}>{watching ? "Stop watching" : "Watch fingers"}</button>
-          <button className={`btn btn-sm ${prefs.handOverlay ? "btn-primary" : "btn-quiet"}`} aria-pressed={prefs.handOverlay} data-testid="toggle-hand"
-            onClick={() => setPrefs({ handOverlay: !prefs.handOverlay })}>Hand</button>
-          {prefs.handOverlay && (
-            <label className="flex items-center gap-1.5 text-muted">
-              <span className="sr-only">Hand opacity</span>
-              <input type="range" min={0.1} max={0.9} step={0.05} value={prefs.handOpacity} aria-label="Hand opacity" className="w-20"
-                onChange={(e) => setPrefs({ handOpacity: Number(e.target.value) })} />
-            </label>
-          )}
-          {arr.lead && (
-            <button className={`btn btn-sm ${prefs.showScale ? "btn-primary" : "btn-quiet"}`} aria-pressed={prefs.showScale} data-testid="toggle-scale"
-              onClick={() => setPrefs({ showScale: !prefs.showScale })}>Scale</button>
-          )}
-          <label className="flex items-center gap-1.5 text-muted">
-            Dots
-            <select className="field min-h-0 py-0.5 text-xs" value={prefs.markerLabel} data-testid="marker-label"
-              onChange={(e) => setPrefs({ markerLabel: e.target.value as typeof prefs.markerLabel })}>
-              <option value="finger">Finger</option>
-              <option value="interval">Interval</option>
-              <option value="note">Note</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 text-muted">
-            View
-            <select className="field min-h-0 py-0.5 text-xs" value={prefs.viewMode} onChange={(e) => setPrefs({ viewMode: e.target.value as typeof prefs.viewMode })}>
-              <option value="beginner">Beginner</option>
-              <option value="chart">Chart</option>
-              <option value="facing">Facing</option>
-              <option value="vertical">Vertical</option>
-            </select>
-          </label>
           <button className="btn btn-quiet btn-sm ml-auto" onClick={toggleFullscreen}><IconExpand width={14} /> {fullscreen ? "Exit" : "Full"}</button>
         </div>
 
@@ -811,7 +753,7 @@ export default function LearnPage() {
             </div>
           </div>
           <TabView notes={notes} beatsPerBar={bpb} totalBars={arr.total_bars} barChords={barChords} current={index}
-            next={nxt ? index + 1 : -1} statuses={statuses} mode={tabMode} onSelect={selectTab} />
+            next={-1} statuses={statuses} mode={tabMode} onSelect={selectTab} />
         </div>
 
         {insight && (

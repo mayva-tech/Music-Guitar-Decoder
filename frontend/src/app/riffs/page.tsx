@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { getEngine } from "@/lib/audio/engine";
 import { buildSchedule } from "@/lib/audio/timeline";
 import { useApp, useHydrated } from "@/lib/store";
+import { chordLine, matchesType, type TypeFilter } from "@/lib/riffFilters";
 import type { Genre, RiffInfo } from "@/lib/types";
 
 const GENRE_LABEL: Record<Genre, string> = { rock: "Rock", pop: "Pop", blues: "Blues" };
@@ -23,7 +24,7 @@ export default function RiffsPage() {
   const [error, setError] = useState<string | null>(null);
   const [genre, setGenre] = useState<Filter<Genre>>("all");
   const [level, setLevel] = useState<Filter<number>>("all");
-  const [source, setSource] = useState<Filter<RiffInfo["source"] | "modern">>("all");
+  const [source, setSource] = useState<Filter<TypeFilter>>("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
 
@@ -32,18 +33,18 @@ export default function RiffsPage() {
     return () => getEngine().stop();
   }, []);
 
-  // Deep links from other pages: /riffs?genre=blues, /riffs?source=modern
+  // Deep links from other pages: /riffs?genre=blues, /riffs?source=modern, /riffs?source=blues_rock
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const g = q.get("genre");
     if (g && g in GENRE_LABEL) setGenre(g as Genre);
     const src = q.get("source");
-    if (src === "modern" || src === "original" || src === "public_domain") setSource(src);
+    if (src === "modern" || src === "blues_rock" || src === "original" || src === "public_domain") setSource(src);
   }, []);
 
   const shown = useMemo(
     () => (riffs ?? []).filter((r) => (genre === "all" || r.genre === genre) && (level === "all" || r.difficulty === level)
-      && (source === "all" || (source === "modern" ? !!r.vibe : r.source === source && (source !== "original" || !r.vibe)))),
+      && (source === "all" || matchesType(r, source))),
     [riffs, genre, level, source],
   );
 
@@ -84,7 +85,7 @@ export default function RiffsPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageTitle title="Riff practice"
-        lead="Short riffs to play with the band: classics from before 1929, technique riffs, and original riffs in modern styles from grunge to neo-soul." />
+        lead="Short riffs to play with the band: classics from before 1929, technique riffs, original riffs in modern styles from grunge to neo-soul, and 20 blues-rock riffs and licks to solo over." />
 
       <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-3" role="group" aria-label="Filters">
         <FilterChips label="Genre" value={genre} onChange={setGenre}
@@ -92,7 +93,8 @@ export default function RiffsPage() {
         <FilterChips label="Level" value={level} onChange={setLevel}
           options={[["all", "All"], [1, "Easy"], [2, "Medium"], [3, "Harder"]]} />
         <FilterChips label="Type" value={source} onChange={setSource}
-          options={[["all", "All"], ["public_domain", "Classics"], ["original", "Technique riffs"], ["modern", "Modern styles"]]} />
+          options={[["all", "All"], ["public_domain", "Classics"], ["original", "Technique riffs"], ["modern", "Modern styles"],
+            ["blues_rock", "Blues rock"]]} />
       </div>
 
       {error && <div className="mb-4"><Notice tone="error">{error}</Notice></div>}
@@ -112,6 +114,12 @@ export default function RiffsPage() {
             <p className="mt-3 text-sm text-muted">
               {GENRE_LABEL[r.genre]} · Key: {r.key_name} · {Math.round(r.tempo_bpm)} BPM · {r.bars} bars
             </p>
+            {!!r.bar_chords?.length && (
+              <p className="mt-2 text-sm" data-testid={`chords-${r.id}`}>
+                <span className="text-muted">Chords: </span>
+                <span className="font-mono">{chordLine(r.bar_chords)}</span>
+              </p>
+            )}
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="What it practises">
               {r.focus.map((f) => <li key={f} className="chip">{f}</li>)}
             </ul>
