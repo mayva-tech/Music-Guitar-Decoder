@@ -56,6 +56,7 @@ export default function DiagonalLicksPage() {
             <a href="#practice" className="btn btn-primary">Start practising</a>
             <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
             <Link href="/learn/caged" className="btn btn-quiet btn-sm">CAGED &amp; pentatonic map</Link>
+            <Link href="/learn/any-key" className="btn btn-quiet btn-sm">Solo in any key</Link>
             <Link href="/learn/backing" className="btn btn-quiet btn-sm">Backing tracks</Link>
           </div>
         </div>

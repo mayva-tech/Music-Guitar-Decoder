@@ -230,15 +230,21 @@ export function lickWindow(notes: PlayableNote[], pad = 1): { from: number; to: 
 
 /* ------------------------------------------------------- backing tracks */
 
-/** One bar of drums, bass and chords as Theory player events, starting at `beat`. */
-export function backingBar(chord: string, style: BackingStyle, beat: number, beats = 4, vol = 0.85): TheoryEvent[] {
+/** Bass note and strummed chord notes for one chord (lets backingBar play chords outside the tables above). */
+export interface ChordSound { bass: number; voicing: number[] }
+
+/**
+ * One bar of drums, bass and chords as Theory player events, starting at `beat`.
+ * `sound` overrides the SOLO_BASS / SOLO_VOICINGS lookup, for chords those tables don't hold.
+ */
+export function backingBar(chord: string, style: BackingStyle, beat: number, beats = 4, vol = 0.85, sound?: ChordSound): TheoryEvent[] {
   const ev: TheoryEvent[] = [];
   const at = (x: number) => beat + (style === "shuffle" && x % 1 ? Math.floor(x) + 2 / 3 : x);
   const hit = (kind: TheoryEvent["kind"], x: number, v: number, d = 0.25) => ev.push({ kind, beat: at(x), beats: d, velocity: v * vol });
   for (let x = 0; x < beats; x += 0.5) hit("hat", x, x % 1 ? 0.3 : 0.5);
   hit("kick", 0, 0.9);
   if (beats >= 4) { hit("kick", 2, 0.8); hit("snare", 1, 0.75); hit("snare", 3, 0.8); }
-  const root = SOLO_BASS[chord];
+  const root = sound?.bass ?? SOLO_BASS[chord];
   if (style === "shuffle") {
     [0, 1, 2, 3].slice(0, beats).forEach((x) => {
       ev.push({ kind: "bass", midi: root, beat: beat + x, beats: 0.66, velocity: 0.8 * vol });
@@ -248,7 +254,7 @@ export function backingBar(chord: string, style: BackingStyle, beat: number, bea
     [[0, 1.4, 0.85], [1.5, 0.4, 0.55], [2, 1.4, 0.8], [3.5, 0.4, 0.55]].filter(([x]) => x < beats)
       .forEach(([x, d, v]) => ev.push({ kind: "bass", midi: root, beat: beat + x, beats: d, velocity: v * vol }));
   }
-  const ns = SOLO_VOICINGS[chord];
+  const ns = sound?.voicing ?? SOLO_VOICINGS[chord];
   const strum = (x: number, d: number, v: number, down = true, notes = ns) =>
     (down ? notes : notes.slice(-4).reverse()).forEach((midi, k) => ev.push({ kind: "pluck", midi, beat: at(x) + k * 0.03, beats: Math.max(d - k * 0.03, 0.2), velocity: v * 0.45 * vol }));
   if (style === "pop") ([[0, 1, 1], [1, 0.5, 1], [1.5, 0.5, 0], [2.5, 0.5, 0], [3, 0.5, 1], [3.5, 0.6, 0]] as const).forEach(([x, d, dn]) => x < beats && strum(x, d, 0.9, dn === 1));

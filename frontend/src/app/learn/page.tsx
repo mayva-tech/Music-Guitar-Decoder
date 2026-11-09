@@ -495,6 +495,7 @@ export default function LearnPage() {
           <Link href="/learn/by-ear" className="btn btn-ghost">Play any song by ear</Link>
           <Link href="/learn/solo" className="btn btn-ghost">Lead solo workshop</Link>
           <Link href="/learn/diagonal" className="btn btn-ghost">Diagonal licks</Link>
+          <Link href="/learn/any-key" className="btn btn-ghost">Solo in any key</Link>
           <Link href="/learn/greats" className="btn btn-ghost">Guitar greats</Link>
           <Link href="/learn/backing" className="btn btn-ghost">Backing tracks</Link>
           <button type="button" className="btn btn-ghost" data-testid="learn-fretmap" onClick={() => setFretmapOpen(true)}>
@@ -540,6 +541,9 @@ export default function LearnPage() {
             </Link>
             <Link href="/learn/diagonal" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="diagonal-link">
               Diagonal licks
+            </Link>
+            <Link href="/learn/any-key" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="any-key-link">
+              Solo in any key
             </Link>
             <Link href="/learn/caged" className="ml-2 chip text-xs hover:bg-panel-2" data-testid="caged-map-link">
               CAGED &amp; pentatonic map

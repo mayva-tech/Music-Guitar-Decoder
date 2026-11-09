@@ -293,6 +293,7 @@ export default function CagedPage() {
       <div className="mt-6 flex flex-wrap gap-3 text-sm">
         <Link href="/progress/pentatonic-box" className="btn btn-quiet btn-sm">Start with box 1</Link>
         <Link href="/learn/theory" className="btn btn-quiet btn-sm">Theory map</Link>
+        <Link href="/learn/any-key" className="btn btn-quiet btn-sm">Solo in any key</Link>
       </div>
     </div>
   );

@@ -151,6 +151,25 @@ A, E, Bm, B7, B♭ and F7 to the solo backing (`SOLO_VOICINGS`, `SOLO_BASS`, `CH
   without a slide: `tests/diagonalLicks.test.ts`, `tests/diagonalNeck.test.ts`, `e2e/diagonal.spec.ts`.
 - `ScaleFretmapNeck` gained optional `lick.route` and `lick.accent`; other callers render as before.
 
+## Solo in any key
+
+**Solo in any key** (`/learn/any-key`) teaches one movable hand frame that works in all 12 keys and over any chord, then
+turns chord tones into melodic lines instead of up-and-down arpeggio exercises.
+
+| Step | What you get |
+|---|---|
+| 1 · The movable frame | Root on the 6th or 5th string, under the index finger (minor frame, root fret + 3) or the middle finger (major frame, one fret below the root). One finger per fret; dots labelled by finger, degree or note. *Walk the frame* to learn it, *Hear it as a phrase* to hear it used. ◀ ▶ moves the hand one fret (= one key); a root-fret chart covers all 12 keys on both strings. |
+| 2 · Variations | Same frame, same fingering. Minor: pentatonic, blues (+♭5), pentatonic + 2, Dorian, natural minor, harmonic minor, m7 arpeggio. Major: pentatonic, major blues (+♭3), major scale, Mixolydian, Lydian, 7 and maj7 arpeggios. Added notes in amber; each card plays a two-bar phrase over its chord. |
+| 3 · Any chord | Pick a root (12) and type (major, minor, 7, m7, maj7, m7♭5): the frame goes on the chord's root, chord tones are labelled R 3 5 7, with the scales to try ranked and explained. |
+| 4 · Melodic arpeggios | Eight ideas over the chosen chord, against a *Straight up and down* reference: skip and turn back, rolling triads, half-step approach, enclosure, passing notes, neighbour-note sequence, call and answer (with a rest), guide tones. Route, order, chord / scale / chromatic roles on the neck, plus TAB. |
+| 5 · Over a progression | Seven progressions (pop four, fifties, blues turn, ii–V–I, minor rock, minor with V7, minor ii–V–i) in the page's key. *Stay in the key's frame* or *Move the frame with each chord* (nearest anchor). One idea or *Mix*; loop with the band, tempo 50–140 BPM, count-in. |
+
+How the lines are built (`frontend/src/lib/music/movable.ts`):
+* `placeInFrame` puts each scale note once inside the frame, with at most one fret of stretch (the stretch that keeps the hand narrowest); fingers rise along each string.
+* `arpeggioLine` voice-leads: each bar starts on a chord tone near the last note, and the idea runs up or down, whichever doesn't carry on a run from the bar before. Approach notes into a chord tone on the same string become hammer-ons / pull-offs.
+* Tests (`tests/movable.test.ts`, 20) check every key × anchor × frame: the same hand shape in all keys, every variation playable, every phrase in its scale, every bar of every line four beats long and starting on a chord tone, no melodic idea running more than three quick notes the same way (the straight reference always does), and close voice leading. `e2e/anyKey.spec.ts` covers desktop and Pixel 7.
+* `backingBar` (solo guide) takes an optional `ChordSound`, so the band can play any chord symbol; existing callers are unchanged.
+
 ## Backing tracks
 
 **Backing tracks** (`/learn/backing`) has 200 drum and bass loops to play guitar over: 10 genres × 20 loops, each at its own tempo.

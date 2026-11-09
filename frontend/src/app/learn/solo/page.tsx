@@ -88,6 +88,7 @@ export default function LeadSoloPage() {
         <Link href="/learn/theory" className="btn btn-quiet btn-sm">Theory map</Link>
         <Link href="/learn/by-ear" className="btn btn-quiet btn-sm">Play by ear</Link>
         <Link href="/learn/diagonal" className="btn btn-quiet btn-sm">Diagonal licks</Link>
+        <Link href="/learn/any-key" className="btn btn-quiet btn-sm" data-testid="solo-any-key-link">Solo in any key</Link>
         <Link href="/learn" className="btn btn-quiet btn-sm">Back to Guitar learning</Link>
       </p>
 
