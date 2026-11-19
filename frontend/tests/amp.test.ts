@@ -49,6 +49,16 @@ describe("amp knobs", () => {
       .toBeGreaterThan(masterDb("clean", { ...AMP_PRESETS.clean, master: 0 }));
   });
 
+  it("keeps distortion output level near the other tones", () => {
+    const dist = masterDb("distortion", AMP_PRESETS.distortion);
+    const crunch = masterDb("crunch", AMP_PRESETS.crunch);
+    const clean = masterDb("clean", AMP_PRESETS.clean);
+    // Within ~4 dB of crunch/clean so distortion no longer sounds quieter.
+    expect(Math.abs(dist - crunch)).toBeLessThanOrEqual(4);
+    expect(Math.abs(dist - clean)).toBeLessThanOrEqual(4);
+    expect(driveFromAmp("distortion", AMP_PRESETS.distortion).post).toBeGreaterThan(0.25);
+  });
+
   it("opens delay and reverb with their knobs and caps feedback", () => {
     const dry = spaceFromAmp({ ...AMP_PRESETS.clean, delay: 0, feedback: 10, reverb: 0 });
     const wet = spaceFromAmp({ ...AMP_PRESETS.clean, delay: 10, feedback: 10, reverb: 10 });

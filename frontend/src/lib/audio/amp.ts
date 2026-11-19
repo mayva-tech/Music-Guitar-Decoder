@@ -58,7 +58,7 @@ export const DEFAULT_AMP: AmpKnobs = {
 export const AMP_PRESETS: Record<LeadTone, AmpKnobs> = {
   clean: { gain: 2.5, bass: 6, mid: 5, treble: 4, presence: 3.5, delay: 2.5, feedback: 2, reverb: 3.5, mute: 0, master: 6.5 },
   crunch: { gain: 7, bass: 5.5, mid: 6, treble: 5, presence: 5.5, delay: 3, feedback: 3, reverb: 2.5, mute: 2, master: 5 },
-  distortion: { gain: 9.5, bass: 6.5, mid: 3.5, treble: 5.5, presence: 6.5, delay: 1.5, feedback: 1.5, reverb: 1.5, mute: 5.5, master: 3.5 },
+  distortion: { gain: 9.5, bass: 6.5, mid: 3.5, treble: 5.5, presence: 6.5, delay: 1.5, feedback: 1.5, reverb: 1.5, mute: 5.5, master: 5.5 },
   blues: { gain: 5.5, bass: 6.5, mid: 5.5, treble: 4, presence: 4.5, delay: 3.5, feedback: 3, reverb: 4, mute: 0, master: 5.5 },
   wah: { gain: 6.5, bass: 5, mid: 6.5, treble: 5.5, presence: 6.5, delay: 4, feedback: 3.5, reverb: 3, mute: 1, master: 5 },
 };
@@ -133,11 +133,11 @@ export function driveFromAmp(tone: LeadTone, amp: AmpKnobs): {
   if (tone === "crunch" || tone === "wah") {
     return { pre: 2 + g * 5.8, distortion: 0.3 + g * 0.58, post: 0.62 - g * 0.34, softClean: false };
   }
-  // distortion — triple stack, gain opens all stages hard
+  // distortion — triple stack; post keeps level near the other tones after saturation
   return {
     pre: 4.5 + g * 12,
     distortion: 0.72 + g * 0.28,
-    post: 0.16 - g * 0.06,
+    post: 0.38 - g * 0.08,
     stage2: 0.72 + g * 0.28,
     stage3: 0.62 + g * 0.35,
     softClean: false,
@@ -167,9 +167,9 @@ export function spaceFromAmp(amp: AmpKnobs): {
   };
 }
 
-/** Master knob → synth volume in dB. */
+/** Master knob → synth volume in dB. Matched so distortion sits with the other tones. */
 export function masterDb(tone: LeadTone, amp: AmpKnobs): number {
-  const base = tone === "distortion" ? -14 : tone === "wah" ? -6 : tone === "clean" ? -4 : -5;
+  const base = tone === "distortion" ? -5 : tone === "wah" ? -6 : tone === "clean" ? -4 : -5;
   return base + knobToDb(amp.master, 8);
 }
 

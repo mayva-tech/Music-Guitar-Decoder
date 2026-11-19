@@ -762,7 +762,7 @@ export function bassBar(t: BackingTrack, bi: number): BassHit[] {
 
 export interface DrumHit { voice: DrumVoice; step: number; vel: number }
 
-/** The drum hits of one bar: the groove, or the genre's fill on the last bar of the loop, plus a crash on bar 1 of a repeat. */
+/** The drum hits of one bar: the groove, or the genre's fill on the last bar of the loop, plus a snare accent on bar 1 of a repeat. */
 export function drumBar(t: BackingTrack, bi: number, cycle = 0): DrumHit[] {
   const d = t.drums;
   const g = GENRES_BY_ID[t.genre];
@@ -789,15 +789,18 @@ export function drumBar(t: BackingTrack, bi: number, cycle = 0): DrumHit[] {
   }
   const hits: DrumHit[] = [];
   for (const voice of DRUM_VOICES) {
+    // Crash rows (if any) play as snare — the old cymbal sample was a tinny ding.
+    const playAs: DrumVoice = voice === "crash" ? "snare" : voice;
     for (const h of rowHits(d.rows[voice])) {
       if (h.step >= fillFrom && voice !== "kick") continue;
       if (h.step >= fillFrom && voice === "kick" && h.step !== fillFrom) continue;
-      hits.push({ voice, step: h.step, vel: h.vel });
+      hits.push({ voice: playAs, step: h.step, vel: h.vel });
     }
   }
   for (const f of fill) hits.push({ voice: "snare", step: fillFrom + f.off, vel: f.vel });
   if (fill.length && !hits.some((h) => h.voice === "kick" && h.step === fillFrom)) hits.push({ voice: "kick", step: fillFrom, vel: 0.8 });
-  if (g.crash && cycle > 0 && bi % len === 0) hits.push({ voice: "crash", step: 0, vel: 0.85 });
+  // Genre "crash" flag used to open the next cycle with a cymbal; that ding is gone — hard snare instead.
+  if (g.crash && cycle > 0 && bi % len === 0) hits.push({ voice: "snare", step: 0, vel: 1 });
   return hits.sort((a, b) => a.step - b.step);
 }
 
@@ -807,7 +810,7 @@ export interface BarOptions {
   bpm: number;
   drums?: boolean;
   bass?: boolean;
-  /** Which pass through the progression (crash on repeats). */
+  /** Which pass through the progression (snare accent on repeats when the genre used to crash). */
   cycle?: number;
 }
 

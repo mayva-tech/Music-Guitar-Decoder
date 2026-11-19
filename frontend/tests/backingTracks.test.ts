@@ -157,11 +157,15 @@ describe("drums", () => {
     }
   });
 
-  it("crashes on bar 1 of a repeat in rock, pop, metal and punk only", () => {
+  it("accents bar 1 of a repeat with snare (never crash) in rock, pop, metal and punk", () => {
     for (const t of TRACKS) {
-      const crash = GENRES.find((g) => g.id === t.genre)!.crash;
+      const accent = GENRES.find((g) => g.id === t.genre)!.crash;
       expect(drumBar(t, 0, 0).some((h) => h.voice === "crash")).toBe(false);
-      expect(drumBar(t, 0, 1).some((h) => h.voice === "crash"), t.id).toBe(crash);
+      expect(drumBar(t, 0, 1).some((h) => h.voice === "crash"), t.id).toBe(false);
+      const first = drumBar(t, 0, 0).filter((h) => h.voice === "snare" && h.step === 0).length;
+      const repeat = drumBar(t, 0, 1).filter((h) => h.voice === "snare" && h.step === 0).length;
+      if (accent) expect(repeat, t.id).toBeGreaterThan(first);
+      else expect(repeat, t.id).toBe(first);
     }
   });
 

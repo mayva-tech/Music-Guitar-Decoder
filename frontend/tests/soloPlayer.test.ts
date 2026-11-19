@@ -25,6 +25,8 @@ vi.mock("tone", () => {
     MembraneSynth: Plain,
     NoiseSynth: Plain,
     Filter: Plain,
+    FeedbackDelay: Plain,
+    Freeverb: class { wet = { value: 0 }; constructor() { Object.assign(this, node()); } },
     Distortion: class { constructor() { created.distortion++; Object.assign(this, node()); } },
     AutoWah: class {
       wet = { value: 1 };
@@ -69,7 +71,7 @@ describe("theory player lead line", () => {
     const lick = LICKS_BY_ID["t-double"]!;
     const p = getTheoryPlayer().play(lickExample(lick), () => undefined, { lead: lick.notes, leadTone: "clean" });
     await until(() => leadCalls.length === lick.notes.length);
-    expect(created.distortion).toBe(0);
+    expect(created.distortion).toBe(2);
     // Notes 0 and 1 share a beat (E+A double stop): they must not use the same voice.
     expect(leadCalls[0]!.at).toBe(leadCalls[1]!.at);
     expect(leadCalls[0]!.synth).not.toBe(leadCalls[1]!.synth);

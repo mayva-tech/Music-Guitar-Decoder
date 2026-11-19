@@ -1,13 +1,21 @@
-// Tone.js playback of a Schedule. Melody / solo / lead / rhythm use plucked-string
-// harmonics (custom partials + pluck envelope). E/A/D use a dark bass voice, G a
-// mid-bass punch voice, B/e stay bright; drums are kick-forward.
+// Tone.js playback of a Schedule. Melody / solo / lead / rhythm are electric guitar strings
+// (electricStrings.ts: a string model rendered to samples). Without an audio context the old
+// oscillator plucks stand in. Drums are kick-forward.
 import type { Articulation, Schedule, TrackName, TrackToggles } from "./timeline";
 import { midiToFreq } from "../music/theory";
+import { mountAcousticHit, type AcousticHit } from "./acousticDrums";
+import { mountStrings, type LeadSynth, type PolyVoice } from "./electricStrings";
 import { isBassStringMidi, TONES, warmToneKind, type WarmToneKind } from "./guitarTone";
 
 type ToneModule = typeof import("tone");
 type T = typeof import("tone");
-type PolyPluck = import("tone").PolySynth<import("tone").MonoSynth>;
+type PolyPluck = PolyVoice;
+
+interface HitVoice {
+  triggerAttackRelease(...args: number[]): void;
+  dispose(): unknown;
+  volume: { value: number };
+}
 
 let tonePromise: Promise<ToneModule> | null = null;
 export function loadTone(): Promise<ToneModule> {
@@ -28,14 +36,17 @@ interface Voices {
   solo: PolyPluck;
   soloLow: PolyPluck;
   soloG: PolyPluck;
-  lead: InstanceType<T["MonoSynth"]>;
-  leadLow: InstanceType<T["MonoSynth"]>;
-  leadG: InstanceType<T["MonoSynth"]>;
+  lead: LeadSynth;
+  leadLow: LeadSynth;
+  leadG: LeadSynth;
   backing: PolyPluck;
+  /** Guitar voices are string samples: they carry their own pick attack, so no sine thump. */
+  sampled: boolean;
   bass: InstanceType<T["MonoSynth"]>;
-  kick: InstanceType<T["MembraneSynth"]>;
-  snare: InstanceType<T["NoiseSynth"]>;
-  hat: InstanceType<T["NoiseSynth"]>;
+  kick: HitVoice;
+  snare: HitVoice;
+  hat: HitVoice;
+  crash: HitVoice;
   click: InstanceType<T["MembraneSynth"]>;
   punch: Record<"melody" | "solo" | "lead" | "backing", Punch>;
   punchG: Record<"melody" | "solo" | "lead", Punch>;
@@ -50,16 +61,29 @@ interface Voices {
 function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Channel"]>>): Voices {
   const fx: { dispose(): unknown }[] = [];
   const keep = <N extends { dispose(): unknown }>(n: N) => (fx.push(n), n);
-  // Warm cab: thick body / punch mid, cut the 3 kHz tin, darker top.
+  const strings = mountStrings(Tone);
+  // Guitar speaker for the string voices: rolls off above 5 kHz, a little body, and the upper-mid
+  // bite that makes a string ring. The oscillator fallback keeps its darker cab (it needed the
+  // 3 kHz cut to stop sounding tinny).
   const cab = (lpHz: number, dest: import("tone").InputNode, hpHz = 75) => {
     const hp = keep(new Tone.Filter(hpHz, "highpass"));
-    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: Math.min(lpHz, 4200), rolloff: -12 }));
-    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: 4.5 }));
-    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: 3.8 }));
-    const tin = keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
+    const lp = keep(new Tone.Filter({
+      type: "lowpass", frequency: strings ? Math.min(lpHz * 1.3, 5200) : Math.min(lpHz, 4200), rolloff: -12,
+    }));
+    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: strings ? 2.5 : 4.5 }));
+    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: strings ? 1 : 3.8 }));
+    const tin = strings
+      ? keep(new Tone.Filter({ type: "peaking", frequency: 2600, Q: 0.9, gain: 2 }))
+      : keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
     hp.chain(lp, body, punch, tin, dest);
     return hp;
   };
+  const poly = (dest: import("tone").InputNode, opts: typeof TONES.melody, maxPolyphony: number, db: number, release: number): PolyPluck =>
+    strings
+      ? strings.poly(dest, { db, release })
+      : new Tone.PolySynth({ voice: Tone.MonoSynth, options: opts, maxPolyphony }).connect(dest);
+  const mono = (dest: import("tone").InputNode, opts: typeof TONES.lead, db: number): LeadSynth =>
+    strings ? strings.lead(dest, { db, release: 0.07 }) : new Tone.MonoSynth(opts).connect(dest);
   const makePunch = (dest: import("tone").InputNode, db: number): Punch => {
     const synth = keep(new Tone.MembraneSynth({
       pitchDecay: 0.018, octaves: 1.4,
@@ -74,27 +98,28 @@ function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Cha
   const melodyIn = cab(4200, ch.melody);
   const melodyLowIn = cab(3600, ch.melody, 90);
   const melodyGIn = cab(4000, ch.melody, 85);
-  const melody = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melody, maxPolyphony: 48 }).connect(melodyIn);
-  const melodyLow = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melodyLow, maxPolyphony: 32 }).connect(melodyLowIn);
-  const melodyG = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melodyG, maxPolyphony: 48 }).connect(melodyGIn);
+  const melody = poly(melodyIn, TONES.melody, 48, -4, 0.5);
+  const melodyLow = poly(melodyLowIn, TONES.melodyLow, 32, -4, 0.5);
+  const melodyG = poly(melodyGIn, TONES.melodyG, 48, -4, 0.5);
 
   // Solo / lead / rhythm: same clean path as melody (no waveshaper).
   const soloIn = cab(4000, ch.solo);
   const soloLowIn = cab(3400, ch.solo, 90);
   const soloGIn = cab(3800, ch.solo, 85);
-  const solo = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.solo, maxPolyphony: 48 }).connect(soloIn);
-  const soloLow = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.soloLow, maxPolyphony: 32 }).connect(soloLowIn);
-  const soloG = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.soloG, maxPolyphony: 48 }).connect(soloGIn);
+  const solo = poly(soloIn, TONES.solo, 48, -4, 0.3);
+  const soloLow = poly(soloLowIn, TONES.soloLow, 32, -4, 0.3);
+  const soloG = poly(soloGIn, TONES.soloG, 48, -4, 0.3);
 
   const leadIn = cab(4100, ch.lead);
   const leadLowIn = cab(3500, ch.lead, 90);
   const leadGIn = cab(3900, ch.lead, 85);
-  const lead = new Tone.MonoSynth(TONES.lead).connect(leadIn);
-  const leadLow = new Tone.MonoSynth(TONES.leadLow).connect(leadLowIn);
-  const leadG = new Tone.MonoSynth(TONES.leadG).connect(leadGIn);
+  const lead = mono(leadIn, TONES.lead, -4);
+  const leadLow = mono(leadLowIn, TONES.leadLow, -4);
+  const leadG = mono(leadGIn, TONES.leadG, -4);
 
   const rhythmIn = cab(3800, ch.backing, 100);
-  const backing = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.backing, maxPolyphony: 32 }).connect(rhythmIn);
+  // Rhythm chords ring for their whole length now, so they sit further back than the short plucks did.
+  const backing = poly(rhythmIn, TONES.backing, 32, -9, 0.12);
 
   // Short same-register attack layer — pick weight without a bass-guitar sub.
   const punch = {
@@ -117,27 +142,37 @@ function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Cha
     envelope: { attack: 0.01, decay: 0.25, sustain: 0.7, release: 0.28 },
   }).connect(bassLp);
 
-  // Drums like Theory: Membrane + Noise — MetalSynth hats cracked on every beat.
-  const drumLp = keep(new Tone.Filter({ type: "lowpass", frequency: 5500, rolloff: -12 }));
-  drumLp.connect(ch.drums);
-  const kick = new Tone.MembraneSynth({
-    pitchDecay: 0.06, octaves: 4,
-    oscillator: { type: "sine" },
-    envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
-  }).connect(drumLp);
-  kick.volume.value = -4;
-  const snareLp = keep(new Tone.Filter({ type: "lowpass", frequency: 2800 }));
-  snareLp.connect(drumLp);
-  const snare = new Tone.NoiseSynth({
-    noise: { type: "pink" },
-    envelope: { attack: 0.001, decay: 0.14, sustain: 0 },
-  }).connect(snareLp);
-  snare.volume.value = -8;
-  const hat = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: { attack: 0.001, decay: 0.04, sustain: 0 },
-  }).connect(drumLp);
-  hat.volume.value = -22;
+  // Acoustic kit one-shots. Synth fallback is only for environments without an audio context.
+  const drum = (kind: AcousticHit, db: number, fallback: () => HitVoice): HitVoice =>
+    mountAcousticHit(Tone, ch.drums, kind, db) ?? fallback();
+  const kick = drum("kick", -2, () => {
+    const s = new Tone.MembraneSynth({
+      pitchDecay: 0.06, octaves: 4,
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
+    }).connect(ch.drums);
+    s.volume.value = -4;
+    return s;
+  });
+  const snare = drum("snare", -3, () => {
+    const snareLp = keep(new Tone.Filter({ type: "lowpass", frequency: 2800 }));
+    snareLp.connect(ch.drums);
+    const s = new Tone.NoiseSynth({
+      noise: { type: "pink" },
+      envelope: { attack: 0.001, decay: 0.14, sustain: 0 },
+    }).connect(snareLp);
+    s.volume.value = -8;
+    return s;
+  });
+  const hat = drum("hat", -18, () => {
+    const s = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.03, sustain: 0 },
+    }).connect(ch.drums);
+    s.volume.value = -28;
+    return s;
+  });
+  const crash = drum("crash", -5, () => hat);
   const click = new Tone.MembraneSynth({
     pitchDecay: 0.01, octaves: 2,
     oscillator: { type: "sine" },
@@ -146,7 +181,7 @@ function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Cha
   click.volume.value = -14;
   return {
     melody, melodyLow, melodyG, solo, soloLow, soloG, lead, leadLow, leadG,
-    backing, bass, kick, snare, hat, click, punch, punchG, fx,
+    backing, sampled: !!strings, bass, kick, snare, hat, crash, click, punch, punchG, fx,
   };
 }
 
@@ -164,7 +199,7 @@ function thump(p: Punch, at: number, midi: number, velocity: number) {
 function disposeVoices(v: Voices) {
   for (const x of [
     v.melody, v.melodyLow, v.melodyG, v.solo, v.soloLow, v.soloG, v.lead, v.leadLow, v.leadG,
-    v.backing, v.bass, v.kick, v.snare, v.hat, v.click,
+    v.backing, v.bass, v.kick, v.snare, v.hat, v.crash, v.click,
     v.punch.melody.synth, v.punch.solo.synth, v.punch.lead.synth, v.punch.backing.synth,
     v.punchG.melody.synth, v.punchG.solo.synth, v.punchG.lead.synth,
     ...v.fx,
@@ -187,6 +222,7 @@ function leadFor(v: Voices, kind: WarmToneKind) {
 }
 
 function punchFor(v: Voices, part: "melody" | "solo" | "lead", kind: WarmToneKind): Punch | null {
+  if (v.sampled) return null;
   if (kind === "bass") return v.punch[part];
   if (kind === "g") return v.punchG[part];
   return null;
@@ -204,7 +240,7 @@ function punchFor(v: Voices, part: "melody" | "solo" | "lead", kind: WarmToneKin
  * (which can freely sound several notes at once).
  */
 export function monoVoiceKey(e: Schedule["events"][number]): string | null {
-  if (e.track === "drums") return e.drum === "crash" ? "hat" : (e.drum ?? "drums"); // crash & hat share one NoiseSynth
+  if (e.track === "drums") return e.drum === "crash" ? "snare" : (e.drum ?? "drums"); // crash plays as snare
   // Lead / bass / click are monophonic: two starts at the same instant throw in Tone.js
   // and abort the rest of the schedule (silence + desync).
   if (e.track === "bass" || e.track === "lead" || e.track === "click") return e.track;
@@ -225,24 +261,19 @@ export function claimMonoStart(claimed: Map<string, number>, voice: string, at: 
 
 /**
  * The events that can actually be scheduled: polyphonic events untouched,
- * monophonic collisions removed (a crash replaces the hat on its beat; any
- * other same-instant repeat on one voice is dropped). Pure, so saved/demo
- * arrangements — which may already contain a crash + hat on beat 0 — play too.
+ * monophonic collisions removed (same-instant repeats on one voice are dropped).
+ * Crash now plays as snare, so a hat can sit on the same beat.
  */
 export function playableEvents(events: Schedule["events"]): Schedule["events"] {
-  const crashTimes = new Set(
-    events.filter((e) => e.track === "drums" && e.drum === "crash").map((e) => Math.round(e.time * 1e4)),
-  );
   const claimed = new Map<string, number>();
   return events.filter((e) => {
-    if (e.track === "drums" && e.drum === "hat" && crashTimes.has(Math.round(e.time * 1e4))) return false;
     const voice = monoVoiceKey(e);
     return !voice || claimMonoStart(claimed, voice, e.time);
   });
 }
 
 /** Bump when the output graph changes so a stale silent bus is rebuilt. */
-const GRAPH_GEN = 16;
+const GRAPH_GEN = 21;
 const ENGINE_STOP_FADE_SEC = 0.12;
 
 export class PlaybackEngine {
@@ -401,7 +432,7 @@ export class PlaybackEngine {
             safe(() => {
               v.backing.triggerAttackRelease(f(e.midis), dur, time, Math.min(0.7, e.velocity * 0.65));
               const root = e.midis[0];
-              if (root != null && isBassStringMidi(root)) thump(v.punch.backing, time, root, e.velocity);
+              if (!v.sampled && root != null && isBassStringMidi(root)) thump(v.punch.backing, time, root, e.velocity);
             });
             break;
           case "bass":
@@ -414,9 +445,8 @@ export class PlaybackEngine {
             safe(() => {
               const dv = Math.min(0.8, e.velocity);
               if (e.drum === "kick") v.kick.triggerAttackRelease(38, 0.32, time, dv);
-              else if (e.drum === "snare") v.snare.triggerAttackRelease(0.18, time, dv * 0.85);
-              else if (e.drum === "crash") v.hat.triggerAttackRelease(0.35, time, dv * 0.55);
-              else v.hat.triggerAttackRelease(0.04, time, dv * 0.5);
+              else if (e.drum === "snare" || e.drum === "crash") v.snare.triggerAttackRelease(0.18, time, dv * 0.9);
+              else v.hat.triggerAttackRelease(0.03, time, dv * 0.3);
             });
             break;
         }
@@ -520,7 +550,7 @@ export class PlaybackEngine {
 }
 
 /** Schedule one lead note with pitch glides for bends, slides and vibrato. */
-export function playLead(synth: InstanceType<T["MonoSynth"]>, midi: number, at: number, dur: number, vel: number, art?: Articulation) {
+export function playLead(synth: LeadSynth, midi: number, at: number, dur: number, vel: number, art?: Articulation) {
   const f = synth.frequency;
   const bend = art?.bendSemitones ?? 0;
   const mute = Math.max(0, Math.min(1, art?.palmMute ?? 0));
@@ -532,7 +562,7 @@ export function playLead(synth: InstanceType<T["MonoSynth"]>, midi: number, at: 
   let startMidi = midi;
   if (art?.slideFromMidi != null) startMidi = art.slideFromMidi;
   else if (bend && !art?.release) startMidi = midi - bend;
-  synth.triggerAttack(midiToFreq(startMidi), at, attackVel);
+  synth.triggerAttack(midiToFreq(startMidi), at, attackVel, { legato: !!art?.legato && mute <= 0.02, mute });
   f.cancelScheduledValues(at);
   f.setValueAtTime(midiToFreq(startMidi), at);
   let t = at;
@@ -564,7 +594,7 @@ export function playLead(synth: InstanceType<T["MonoSynth"]>, midi: number, at: 
   // Freeze pitch at release so leftover glide automation can't pop when the oscillator stops.
   const end = at + gate;
   try {
-    const cur = f.getValueAtTime(end);
+    const cur = Number(f.getValueAtTime(end));
     f.cancelScheduledValues(end);
     f.setValueAtTime(cur, end);
   } catch { /* ignore */ }

@@ -125,7 +125,8 @@ def bass_for(h: Harmonization, total_beats: float, style: str, beats_per_bar: in
 
 def drums_for(total_beats: float, style: str, beats_per_bar: int = 4) -> list[DrumHit]:
     genre = genre_of(style)
-    out: list[DrumHit] = [DrumHit(start_beat=0, kind="crash", velocity=0.6)]
+    # Open with a snare accent (never a crash cymbal — that ding/ting is gone).
+    out: list[DrumHit] = [DrumHit(start_beat=0, kind="snare", velocity=0.75)]
     soft = style in ("ballad", "acoustic")
     b = 0.0
     while b < total_beats - 1e-6:
@@ -139,9 +140,7 @@ def drums_for(total_beats: float, style: str, beats_per_bar: int = 4) -> list[Dr
             out.append(DrumHit(start_beat=b, kind="kick", velocity=0.6 if soft else (0.75 if genre.key == "blues" else 0.9)))
         if ib in (1, 3):
             out.append(DrumHit(start_beat=b, kind="snare", velocity=0.5 if soft else (0.7 if genre.key == "blues" else 0.85)))
-        # No hat under the opening crash: both are played by the same monophonic
-        # synth voice in the frontend, which rejects two starts at the same time.
-        if (not soft or on_beat) and b > 1e-9:
+        if not soft or on_beat:
             out.append(DrumHit(start_beat=b, kind="hat", velocity=0.45 if on_beat else 0.3))
         b += 0.5
     return out

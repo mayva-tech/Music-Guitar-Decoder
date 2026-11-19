@@ -29,14 +29,19 @@ export default function DiagonalLicksPage() {
   // Deep link: /learn/diagonal#dg-blues-ladder
   useEffect(() => {
     const id = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
-    if (id && DIAGONAL_BY_ID[id]) setSelected(id);
-  }, []);
+    const next = id ? DIAGONAL_BY_ID[id] : undefined;
+    if (!next) return;
+    setSelected(id);
+    if (next.tone) setPrefs({ leadTone: next.tone, amp: AMP_PRESETS[next.tone] });
+  }, [setPrefs]);
 
   const dl = DIAGONAL_BY_ID[selected] ?? DIAGONAL_LICKS[0]!;
   const select = (id: string) => {
     if (id === selected) return;
     audio.stop();
     setSelected(id);
+    const next = DIAGONAL_BY_ID[id];
+    if (next?.tone) setPrefs({ leadTone: next.tone, amp: AMP_PRESETS[next.tone] });
     try {
       window.history.replaceState(null, "", `#${id}`);
     } catch {

@@ -23,7 +23,11 @@ vi.mock("tone", () => {
     MonoSynth: voice("mono"),
     MembraneSynth: voice("membrane"),
     NoiseSynth: voice("noise"),
-    Filter: class { connect = vi.fn(); dispose = vi.fn(); },
+    Distortion: voice("distortion"),
+    AutoWah: class extends voice("wah") { wet = { value: 1 }; },
+    FeedbackDelay: voice("delay"),
+    Freeverb: class extends voice("reverb") { wet = { value: 0 }; },
+    Filter: class { connect = vi.fn().mockReturnThis(); chain = vi.fn().mockReturnThis(); dispose = vi.fn(); },
     Gain: class {
       gain = { value: 1, cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() };
       connect = vi.fn().mockReturnThis();
@@ -47,7 +51,7 @@ describe("backing tracks through the theory player", () => {
     vi.resetModules();
   });
 
-  it("plays every drum hit and bass note of a bar, including ride, rim, open hat and crash", async () => {
+  it("plays every drum hit and bass note of a bar, including ride, rim, open hat and snare accents", async () => {
     const { getTheoryPlayer } = await import("@/lib/theory/player");
     const { TRACKS, barSound, drumBar, bassBar } = await import("@/lib/music/backingTracks");
     const jazz = TRACKS.find((t) => t.drums.id === "swingRide")!;
@@ -59,9 +63,8 @@ describe("backing tracks through the theory player", () => {
       void p.play(barSound(t, 0, { bpm: t.bpm, cycle }), () => {});
       await new Promise((r) => setTimeout(r, 0));
       const calls = made.reduce((n, m) => n + m.triggerAttackRelease.mock.calls.length, 0);
-      const drums = drumBar(t, 0, cycle);
-      const rides = drums.filter((h) => h.voice === "ride").length; // ride = noise + ping
-      expect(calls, t.id).toBe(drums.length + rides + bassBar(t, 0).length);
+      // Ride ping is silenced (no sine ting); rim/crash play as snare — one trigger each.
+      expect(calls, t.id).toBe(drumBar(t, 0, cycle).length + bassBar(t, 0).length);
       p.stop();
     }
   });

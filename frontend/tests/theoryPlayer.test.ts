@@ -9,6 +9,7 @@ vi.mock("tone", () => {
     releaseAll: vi.fn(),
     connect: vi.fn().mockReturnThis(),
     toDestination: vi.fn().mockReturnThis(),
+    chain(..._nodes: unknown[]) { return this; },
     dispose: vi.fn(),
     volume: { value: 0 },
   });
@@ -41,6 +42,13 @@ vi.mock("tone", () => {
     NoiseSynth: class {
       constructor() { Object.assign(this, synth()); }
       connect = vi.fn().mockReturnThis();
+    },
+    FeedbackDelay: class {
+      constructor() { Object.assign(this, synth()); }
+    },
+    Freeverb: class {
+      wet = { value: 0 };
+      constructor() { Object.assign(this, synth()); }
     },
     Filter: class {
       constructor() { Object.assign(this, synth()); }

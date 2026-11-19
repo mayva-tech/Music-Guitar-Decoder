@@ -145,21 +145,21 @@ describe("synchronized playback timing (test 14)", () => {
 });
 
 describe("monophonic voice collisions (playback regression)", () => {
-  it("drops the hat that shares beat 0 with the crash on the demo arrangement", async () => {
+  it("plays crash as snare so hats can share the downbeat, and never double-fires one voice", async () => {
     const { playableEvents, monoVoiceKey } = await import("@/lib/audio/engine");
     const s = buildSchedule(arr);
-    // The fixture really does contain the collision that crashed Tone.js:
     const atZero = s.events.filter((e) => e.time === 0 && e.track === "drums").map((e) => e.drum);
     expect(atZero).toContain("crash");
     expect(atZero).toContain("hat");
-    expect(monoVoiceKey(s.events.find((e) => e.drum === "crash")!)).toBe(monoVoiceKey(s.events.find((e) => e.drum === "hat")!));
+    // Crash is routed to the snare voice — no shared hat/crash collision anymore.
+    expect(monoVoiceKey(s.events.find((e) => e.drum === "crash")!)).toBe("snare");
+    expect(monoVoiceKey(s.events.find((e) => e.drum === "hat")!)).toBe("hat");
 
     const kept = playableEvents(s.events);
     const keptZero = kept.filter((e) => e.time === 0 && e.track === "drums").map((e) => e.drum);
-    expect(keptZero).toContain("crash"); // crash wins…
-    expect(keptZero).not.toContain("hat"); // …the duplicate hat on its voice is gone
-    expect(keptZero).toContain("kick"); // different voice, untouched
-    // No monophonic voice is ever started twice at the same time, on any track:
+    expect(keptZero).toContain("crash"); // still scheduled, but sounds as snare
+    expect(keptZero).toContain("hat");
+    expect(keptZero).toContain("kick");
     const seen = new Set<string>();
     for (const e of kept) {
       const voice = monoVoiceKey(e);
@@ -168,7 +168,6 @@ describe("monophonic voice collisions (playback regression)", () => {
       expect(seen.has(key)).toBe(false);
       seen.add(key);
     }
-    // Polyphony is preserved: simultaneous melody/solo/backing notes all survive.
     expect(kept.filter((e) => e.track !== "drums").length).toBe(s.events.filter((e) => e.track !== "drums").length);
   });
 });

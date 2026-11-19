@@ -94,7 +94,8 @@ export function useDiagonalAudio(leadTone: LeadTone, amp: AmpKnobs = DEFAULT_AMP
     const first = practiceExample(dl, { part: p.part, melodyOnly: p.melodyOnly, pct: p.pct, countIn: p.countIn });
     void getTheoryPlayer()
       .play(first, hl, {
-        leadTone: tone.current,
+        // Genre tone from the lick when set; page AmpRack knobs still apply.
+        leadTone: dl.tone ?? tone.current,
         amp: ampRef.current,
         loop: p.loop,
         nextExample: () => {

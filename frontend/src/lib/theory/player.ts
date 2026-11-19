@@ -6,6 +6,8 @@ import {
   ampSignature, DEFAULT_AMP, driveFromAmp, knobToDb, masterDb, muteFromAmp, normalizeAmp, spaceFromAmp, type AmpKnobs,
 } from "@/lib/audio/amp";
 import { getEngine, loadTone, playLead } from "@/lib/audio/engine";
+import { mountAcousticHit, type AcousticHit } from "@/lib/audio/acousticDrums";
+import { mountStrings, type LeadSynth, type PolyVoice } from "@/lib/audio/electricStrings";
 import { DEFAULT_LEAD_TONE, type LeadTone } from "@/lib/audio/leadTone";
 import { articulation, palmMuteGate, withPalmMute } from "@/lib/audio/timeline";
 import { midiToFreq } from "@/lib/music/theory";
@@ -42,30 +44,37 @@ export interface TheoryPlayer {
   readonly playing: boolean;
 }
 
+/** Drum one-shot: acoustic sample, or the synth fallback used in tests. */
+interface HitVoice {
+  triggerAttackRelease(...args: number[]): void;
+  dispose(): unknown;
+  volume: { value: number };
+}
+
 interface Kit {
   bus: import("tone").Gain;
-  pluckBright: import("tone").PolySynth;
-  pluckWarm: import("tone").PolySynth;
-  pluckNormal: import("tone").PolySynth;
+  pluckBright: PolyVoice;
+  pluckWarm: PolyVoice;
+  pluckNormal: PolyVoice;
   bass: import("tone").MonoSynth;
   organ: import("tone").MonoSynth;
-  kick: import("tone").MembraneSynth;
-  snare: import("tone").NoiseSynth;
-  hat: import("tone").NoiseSynth;
+  kick: HitVoice;
+  snare: HitVoice;
+  hat: HitVoice;
   click: import("tone").MembraneSynth;
   /** Backing-track kit pieces (open hat, ride, rim click, crash). */
-  ohat: import("tone").NoiseSynth;
-  ride: import("tone").NoiseSynth;
-  ridePing: import("tone").MembraneSynth;
-  rim: import("tone").MembraneSynth;
-  crash: import("tone").NoiseSynth;
+  ohat: HitVoice;
+  ride: HitVoice;
+  ridePing: HitVoice;
+  rim: HitVoice;
+  crash: HitVoice;
   /** Built on demand (only when a lead line is played). Two voices per string family so double stops can sound together. */
   lead: LeadRig | null;
   fx: { dispose(): unknown }[];
 }
 
 interface LeadVoice {
-  synth: import("tone").MonoSynth;
+  synth: LeadSynth;
   /** Seconds (Tone time) until which this voice is busy. */
   busyUntil: number;
 }
@@ -173,11 +182,15 @@ function buildLeadRig(Tone: ToneMod, kit: Kit, tone: LeadTone, ampIn?: AmpKnobs)
   };
 
   const vol = masterDb(tone, amp);
+  // The guitar itself: string samples into the amp. Oscillators only when there is no audio context.
+  const strings = mountStrings(Tone);
   const mk = (opts: typeof TONES.lead, lpHz: number, hpHz: number): LeadVoice[] => {
     const dest = chain(lpHz, hpHz);
     return [0, 1].map(() => {
-      const synth = keep(new Tone.MonoSynth(opts).connect(dest));
-      synth.volume.value = vol;
+      const synth: LeadSynth = keep(strings ? strings.lead(dest, { release: 0.07 }) : new Tone.MonoSynth(opts).connect(dest));
+      // A string keeps ringing where the oscillator pluck faded fast, so it sits 2 dB lower to
+      // leave the same headroom over drums and bass.
+      synth.volume.value = strings ? vol - 2 : vol;
       return { synth, busyUntil: 0 };
     });
   };
@@ -209,40 +222,54 @@ function buildKit(Tone: ToneMod): Kit {
   // Shared bus so stop can fade to silence instead of hard-cutting disposed nodes.
   const bus = keep(new Tone.Gain(1).toDestination());
 
-  // Shared clean cab for chord / scale plucks: body + punch, cut tin.
-  const pluckCabIn = (() => {
+  // Chord / scale plucks are electric guitar strings (string model samples). Without an audio
+  // context the oscillator plucks stand in, behind the darker cab they needed.
+  const strings = mountStrings(Tone);
+  // Clean guitar speaker: top rolled off above ~5 kHz, some body, upper-mid bite so strings ring.
+  const pluckCab = (lpHz: number, biteDb: number) => {
     const hp = keep(new Tone.Filter(75, "highpass"));
-    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: 4000, rolloff: -12 }));
-    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: 4.5 }));
-    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: 3.8 }));
-    const tin = keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
+    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: lpHz, rolloff: -12 }));
+    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: strings ? 2.5 : 4.5 }));
+    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: strings ? 1 : 3.8 }));
+    const tin = strings
+      ? keep(new Tone.Filter({ type: "peaking", frequency: 2600, Q: 0.9, gain: biteDb }))
+      : keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
     hp.chain(lp, body, punch, tin, bus);
     return hp;
-  })();
+  };
+  const pluckCabIn = pluckCab(strings ? 5000 : 4000, 2);
 
-  const pluckNormal = new Tone.PolySynth({
-    voice: Tone.MonoSynth,
-    options: TONES.melodyG,
-    maxPolyphony: 16,
-  }).connect(pluckCabIn);
+  let pluckNormal: PolyVoice;
+  let pluckBright: PolyVoice;
+  let pluckWarm: PolyVoice;
+  if (strings) {
+    // Same string, three pickup settings: normal, bridge (brighter), neck (rounder).
+    pluckNormal = strings.poly(pluckCabIn, { release: 0.3 });
+    pluckBright = strings.poly(pluckCab(5600, 4), { release: 0.3 });
+    pluckWarm = strings.poly(pluckCab(3400, 0), { release: 0.3 });
+  } else {
+    pluckNormal = new Tone.PolySynth({
+      voice: Tone.MonoSynth,
+      options: TONES.melodyG,
+      maxPolyphony: 16,
+    }).connect(pluckCabIn);
+    pluckBright = new Tone.PolySynth({
+      voice: Tone.MonoSynth,
+      options: {
+        ...TONES.melodyG,
+        filterEnvelope: { ...TONES.melodyG.filterEnvelope, baseFrequency: 560, octaves: 2.7 },
+      },
+      maxPolyphony: 12,
+    }).connect(pluckCabIn);
+    pluckWarm = new Tone.PolySynth({
+      voice: Tone.MonoSynth,
+      options: TONES.melodyLow,
+      maxPolyphony: 12,
+    }).connect(pluckCabIn);
+  }
   // Guitar plucks quieter than bass so the root line reads clearly.
   pluckNormal.volume.value = -12;
-
-  const pluckBright = new Tone.PolySynth({
-    voice: Tone.MonoSynth,
-    options: {
-      ...TONES.melodyG,
-      filterEnvelope: { ...TONES.melodyG.filterEnvelope, baseFrequency: 560, octaves: 2.7 },
-    },
-    maxPolyphony: 12,
-  }).connect(pluckCabIn);
   pluckBright.volume.value = -12;
-
-  const pluckWarm = new Tone.PolySynth({
-    voice: Tone.MonoSynth,
-    options: TONES.melodyLow,
-    maxPolyphony: 12,
-  }).connect(pluckCabIn);
   pluckWarm.volume.value = -11;
 
   const bass = new Tone.MonoSynth({
@@ -260,27 +287,38 @@ function buildKit(Tone: ToneMod): Kit {
   }).connect(bus);
   organ.volume.value = -12;
 
-  const kick = new Tone.MembraneSynth({
-    pitchDecay: 0.06,
-    octaves: 4,
-    oscillator: { type: "sine" },
-    envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
-  }).connect(bus);
-  kick.volume.value = -4;
+  // Acoustic one-shots when the audio context exists; synth fallback keeps tests countable.
+  const hit = (kind: AcousticHit, db: number, fallback: () => HitVoice): HitVoice =>
+    mountAcousticHit(Tone, bus, kind, db) ?? fallback();
 
-  const snareLp = keep(new Tone.Filter({ type: "lowpass", frequency: 2800 }));
-  snareLp.connect(bus);
-  const snare = new Tone.NoiseSynth({
-    noise: { type: "pink" },
-    envelope: { attack: 0.001, decay: 0.14, sustain: 0 },
-  }).connect(snareLp);
-  snare.volume.value = -8;
+  const kick = hit("kick", -3, () => {
+    const s = new Tone.MembraneSynth({
+      pitchDecay: 0.06, octaves: 4, oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
+    }).connect(bus);
+    s.volume.value = -4;
+    return s;
+  });
 
-  const hat = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: { attack: 0.001, decay: 0.04, sustain: 0 },
-  }).connect(bus);
-  hat.volume.value = -22;
+  const snare = hit("snare", -4, () => {
+    const snareLp = keep(new Tone.Filter({ type: "lowpass", frequency: 2800 }));
+    snareLp.connect(bus);
+    const s = new Tone.NoiseSynth({
+      noise: { type: "pink" },
+      envelope: { attack: 0.001, decay: 0.14, sustain: 0 },
+    }).connect(snareLp);
+    s.volume.value = -8;
+    return s;
+  });
+
+  const hat = hit("hat", -18, () => {
+    const s = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.03, sustain: 0 },
+    }).connect(bus);
+    s.volume.value = -28;
+    return s;
+  });
 
   const click = new Tone.MembraneSynth({
     pitchDecay: 0.01,
@@ -290,46 +328,54 @@ function buildKit(Tone: ToneMod): Kit {
   }).connect(bus);
   click.volume.value = -14;
 
-  // Cymbals: filtered noise (no MetalSynth, so the kit stays light and testable).
-  const ohatHp = keep(new Tone.Filter({ type: "highpass", frequency: 6500 }));
-  ohatHp.connect(bus);
-  const ohat = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: { attack: 0.002, decay: 0.24, sustain: 0 },
-  }).connect(ohatHp);
-  ohat.volume.value = -24;
+  const ohat = hit("ohat", -14, () => {
+    const ohatHp = keep(new Tone.Filter({ type: "highpass", frequency: 4500 }));
+    ohatHp.connect(bus);
+    const s = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.002, decay: 0.18, sustain: 0 },
+    }).connect(ohatHp);
+    s.volume.value = -26;
+    return s;
+  });
 
-  const rideHp = keep(new Tone.Filter({ type: "highpass", frequency: 5200 }));
-  rideHp.connect(bus);
-  const ride = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: { attack: 0.001, decay: 0.32, sustain: 0 },
-  }).connect(rideHp);
-  ride.volume.value = -27;
-  // A short high "ping" gives the ride its bell-like stick sound.
-  const ridePing = new Tone.MembraneSynth({
-    pitchDecay: 0.002,
-    octaves: 0.3,
-    oscillator: { type: "sine" },
-    envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.05 },
-  }).connect(bus);
-  ridePing.volume.value = -30;
+  const rideSample = mountAcousticHit(Tone, bus, "ride", -16);
+  const ride = rideSample ?? (() => {
+    const rideHp = keep(new Tone.Filter({ type: "highpass", frequency: 5200 }));
+    rideHp.connect(bus);
+    const s = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.32, sustain: 0 },
+    }).connect(rideHp);
+    s.volume.value = -30;
+    return s;
+  })();
+  // Never layer a sine ping — that was the every-beat tin-can ting on ride grooves.
+  const ridePing: HitVoice = {
+    triggerAttackRelease() { /* silenced */ },
+    dispose() { /* noop */ },
+    volume: { value: -99 },
+  };
 
-  const rim = new Tone.MembraneSynth({
-    pitchDecay: 0.004,
-    octaves: 1.5,
-    oscillator: { type: "triangle" },
-    envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
-  }).connect(bus);
-  rim.volume.value = -16;
+  const rim = hit("rim", -8, () => {
+    const s = new Tone.MembraneSynth({
+      pitchDecay: 0.004, octaves: 1.5, oscillator: { type: "triangle" },
+      envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
+    }).connect(bus);
+    s.volume.value = -16;
+    return s;
+  });
 
-  const crashHp = keep(new Tone.Filter({ type: "highpass", frequency: 3800 }));
-  crashHp.connect(bus);
-  const crash = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: { attack: 0.002, decay: 1.3, sustain: 0 },
-  }).connect(crashHp);
-  crash.volume.value = -23;
+  const crash = hit("crash", -6, () => {
+    const crashHp = keep(new Tone.Filter({ type: "highpass", frequency: 3800 }));
+    crashHp.connect(bus);
+    const s = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.002, decay: 1.3, sustain: 0 },
+    }).connect(crashHp);
+    s.volume.value = -23;
+    return s;
+  });
 
   return {
     bus, pluckBright, pluckWarm, pluckNormal, bass, organ, kick, snare, hat, click,
@@ -381,7 +427,7 @@ function pluckFor(kit: Kit, timbre?: Timbre) {
 }
 
 /** Bump when kit levels / voices change so a live session rebuilds. */
-const KIT_GEN = 6;
+const KIT_GEN = 11;
 
 class TheoryPlayerImpl implements TheoryPlayer {
   private kit: Kit | null = null;
@@ -524,20 +570,22 @@ class TheoryPlayerImpl implements TheoryPlayer {
             kit.snare.triggerAttackRelease(Math.min(0.18, dur), at, vel);
             break;
           case "hat":
-            kit.hat.triggerAttackRelease(0.04, at, vel * 0.7);
+            kit.hat.triggerAttackRelease(0.03, at, vel * 0.35);
             break;
           case "ohat":
-            kit.ohat.triggerAttackRelease(0.2, at, vel * 0.8);
+            kit.ohat.triggerAttackRelease(0.16, at, vel * 0.45);
             break;
           case "ride":
-            kit.ride.triggerAttackRelease(0.3, at, vel * 0.8);
+            kit.ride.triggerAttackRelease(0.22, at, vel * 0.4);
             kit.ridePing.triggerAttackRelease(2600, 0.15, at, vel * 0.6);
             break;
           case "rim":
-            kit.rim.triggerAttackRelease(1500, 0.04, at, vel);
+            // Rim used to read as a wooden ting; play the snare instead.
+            kit.snare.triggerAttackRelease(Math.min(0.16, dur), at, vel * 0.85);
             break;
           case "crash":
-            kit.crash.triggerAttackRelease(1.2, at, vel);
+            // No crash cymbal — that was the ding/ting at section ends. Snare accent instead.
+            kit.snare.triggerAttackRelease(Math.min(0.2, dur), at, vel);
             break;
           case "click":
             kit.click.triggerAttackRelease(e.velocity >= 0.95 ? 1400 : 900, 0.04, at, vel);

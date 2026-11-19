@@ -148,11 +148,8 @@ def test_backing_band_timeline():
     assert len(arr.backing) == total * 2  # eighth-note power chords
     assert all(0 <= e.start_beat < total for e in arr.backing)
     assert {d.kind for d in arr.drums} >= {"kick", "snare", "hat"}
-    # Crash and hat share one monophonic synth voice in the frontend, which
-    # rejects two starts at the same time — they must never share a beat.
-    hat_beats = {d.start_beat for d in arr.drums if d.kind == "hat"}
-    crash_beats = {d.start_beat for d in arr.drums if d.kind == "crash"}
-    assert not (hat_beats & crash_beats)
+    # Crash cymbals are gone (they dinged); arrangements open with snare instead.
+    assert not any(d.kind == "crash" for d in arr.drums)
     assert all(28 <= n.midi <= 47 for n in arr.bass)
     bar_roots = [next(e.midis[0] % 12 for e in arr.backing if e.start_beat == b * 4) for b in range(4)]
     assert bar_roots == [0, 5, 7, 0]
