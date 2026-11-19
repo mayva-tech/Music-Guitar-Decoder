@@ -50,7 +50,7 @@ export interface SoloTechnique {
 
 /* --------------------------------------------------------- lick builder */
 
-type Tech = "" | "slide" | "h" | "p" | "bend" | "br" | "vib";
+type Tech = "" | "slide" | "h" | "p" | "bend" | "br" | "vib" | "pm";
 interface Spec { s: number; f: number; b: number; d: number; t: Tech; bend?: 1 | 2; vib?: boolean }
 const N = (s: number, f: number, b: number, d: number, t: Tech = "", o: { bend?: 1 | 2; vib?: boolean } = {}): Spec => ({ s, f, b, d, t, ...o });
 
@@ -71,6 +71,7 @@ export function buildLick(id: string, specs: Spec[], fingerBase = 4): PlayableNo
     if (sp.t === "p") technique = "pull_off";
     if (sp.t === "bend") { technique = "bend"; bend = sp.bend ?? 2; }
     if (sp.t === "br") { technique = "bend_release"; bend = sp.bend ?? 2; }
+    if (sp.t === "pm") technique = "palm_mute";
     const fretted = STANDARD_TUNING[sp.s] + sp.f;
     const midi = technique === "bend" ? fretted + bend! : fretted;
     const note: PlayableNote = {
@@ -191,6 +192,7 @@ export type LickGlyph =
   | { kind: "hammer_on" | "pull_off"; string: number; fromFret: number; toFret: number; noteIndex: number }
   | { kind: "bend" | "bend_release"; string: number; fret: number; label: "full" | "½"; noteIndex: number }
   | { kind: "vibrato"; string: number; fret: number; noteIndex: number }
+  | { kind: "palm_mute"; string: number; fret: number; noteIndex: number }
   | { kind: "double_stop"; strings: [number, number]; frets: [number, number]; noteIndex: number };
 
 /** Everything the neck's lick layer draws: one marker per position (with play order) and technique glyphs. */
@@ -211,6 +213,8 @@ export function lickOverlay(notes: PlayableNote[]): { markers: LickMarker[]; gly
       glyphs.push({ kind: n.technique, string: n.string, fromFret: prev.fret, toFret: n.fret, noteIndex: i });
     if (n.technique === "bend" || n.technique === "bend_release")
       glyphs.push({ kind: n.technique, string: n.string, fret: n.fret, label: (n.bend_semitones ?? 2) >= 2 ? "full" : "½", noteIndex: i });
+    if (n.technique === "palm_mute")
+      glyphs.push({ kind: "palm_mute", string: n.string, fret: n.fret, noteIndex: i });
     if (n.vibrato) glyphs.push({ kind: "vibrato", string: n.string, fret: n.fret, noteIndex: i });
     const pair = notes.find((o, j) => j !== i && o.start_beat === n.start_beat && o.string === n.string + 1);
     if (pair) glyphs.push({ kind: "double_stop", strings: [n.string, pair.string], frets: [n.fret, pair.fret], noteIndex: i });
@@ -254,7 +258,8 @@ export function backingBar(chord: string, style: BackingStyle, beat: number, bea
     [[0, 1.4, 0.85], [1.5, 0.4, 0.55], [2, 1.4, 0.8], [3.5, 0.4, 0.55]].filter(([x]) => x < beats)
       .forEach(([x, d, v]) => ev.push({ kind: "bass", midi: root, beat: beat + x, beats: d, velocity: v * vol }));
   }
-  const ns = sound?.voicing ?? SOLO_VOICINGS[chord];
+  const ns = sound?.voicing ?? SOLO_VOICINGS[chord] ?? [];
+  if (!ns.length || root == null) return ev;
   const strum = (x: number, d: number, v: number, down = true, notes = ns) =>
     (down ? notes : notes.slice(-4).reverse()).forEach((midi, k) => ev.push({ kind: "pluck", midi, beat: at(x) + k * 0.03, beats: Math.max(d - k * 0.03, 0.2), velocity: v * 0.45 * vol }));
   if (style === "pop") ([[0, 1, 1], [1, 0.5, 1], [1.5, 0.5, 0], [2.5, 0.5, 0], [3, 0.5, 1], [3.5, 0.6, 0]] as const).forEach(([x, d, dn]) => x < beats && strum(x, d, 0.9, dn === 1));
@@ -316,6 +321,11 @@ export const TECHNIQUES: SoloTechnique[] = [
     what: "Wobble the pitch slightly while a note rings. It turns a plain note into a sung one. Listen to the second A.",
     how: ["Small, even bends back and forth, from the wrist.", "Keep it in time with the song.", "Add it to the last note of a phrase."],
     lick: lick({ id: "t-vibrato", title: "Vibrato", sub: "A plain, then A with vibrato.", bpm: 80, specs: [N(1, 5, 0, 2), N(1, 5, 2, 3, "vib")] }) },
+  { id: "palm-mute", name: "Palm mute", symbol: "m0",
+    what: "Rest the side of your picking hand lightly on the strings near the bridge. Notes chug short and angry — the metal riff sound.",
+    how: ["Touch the strings lightly; too hard kills the note entirely.", "Pick hard with down-strokes for angst.", "Let fretted accents ring while open notes stay muted (m in TAB)."],
+    lick: lick({ id: "t-palm", title: "Palm mute", sub: "Muted open E chugs, then a fretted hit that rings.", bpm: 100, style: "rock",
+      specs: [N(6, 0, 0, 0.4, "pm"), N(6, 0, 0.4, 0.4, "pm"), N(6, 3, 0.85, 0.55), N(6, 0, 1.5, 0.4, "pm"), N(6, 0, 1.9, 0.4, "pm"), N(6, 3, 2.4, 1.2)] }) },
   { id: "double-stop", name: "Double stops", symbol: "5+5",
     what: "Two notes at once on neighbouring strings. Fuller than a single note, lighter than a chord. A classic rock and blues sound.",
     how: ["Flatten one finger across two strings, or use two fingers.", "Pick both strings in one stroke.", "Mute the strings you aren't playing."],

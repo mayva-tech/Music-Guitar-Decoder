@@ -5,6 +5,7 @@ Standard TAB convention: thin e string (string 1) on TOP, thick E (string 6) at 
 Technique notation (written on the note it applies to):
     /7  slide up into fret 7        \\5  slide down into fret 5
     h7  hammer-on to fret 7          p5  pull-off to fret 5
+    m0  palm-mute fret 0 (chug)      m3  palm-mute fretted note
     7b9 bend fret 7 up to the pitch of fret 9 (whole step); 7b8 = half step
     7b9r7 bend up and release        7~  vibrato
 """
@@ -24,9 +25,9 @@ class TabNote(Protocol):
     fret: int | None
 
 
-_PREFIX = {"slide_up": "/", "slide_down": "\\", "hammer_on": "h", "pull_off": "p"}
-TOKEN_RE = re.compile(r"^([/\\hp]?)(\d+)(?:b(\d+)(?:r(\d+))?)?(~?)$")
-_TOKEN_CHARS = set("0123456789/\\hpbr~")
+_PREFIX = {"slide_up": "/", "slide_down": "\\", "hammer_on": "h", "pull_off": "p", "palm_mute": "m"}
+TOKEN_RE = re.compile(r"^([/\\hpm]?)(\d+)(?:b(\d+)(?:r(\d+))?)?(~?)$")
+_TOKEN_CHARS = set("0123456789/\\hpmbr~")
 
 
 def note_token(n: Any) -> str:
@@ -49,7 +50,7 @@ def token_to_technique(tok: str) -> dict:
         raise ValueError(f"Bad TAB token {tok!r}")
     prefix, fret, bend_to, release, vib = m.groups()
     fret_i = int(fret)
-    tech = {"/": "slide_up", "\\": "slide_down", "h": "hammer_on", "p": "pull_off"}.get(prefix)
+    tech = {"/": "slide_up", "\\": "slide_down", "h": "hammer_on", "p": "pull_off", "m": "palm_mute"}.get(prefix)
     bend = None
     if bend_to:
         bend = int(bend_to) - fret_i

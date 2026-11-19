@@ -13,6 +13,7 @@ import { SoloHero } from "@/components/solo/SoloHero";
 import { TechniqueCard } from "@/components/solo/TechniqueCard";
 import { SectionHead, chordListFor, type MapRequest } from "@/components/solo/shared";
 import { useSoloAudio } from "@/components/solo/useSoloAudio";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { JAM_TRACKS, LICKS, TECHNIQUES, TARGET_CHORDS } from "@/lib/music/soloGuide";
 import { useApp, useHydrated } from "@/lib/store";
@@ -22,9 +23,11 @@ const DEFAULT_MAP: MapRequest = { root: "A", mode: "minor-pentatonic", box: 1, c
 export default function LeadSoloPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
+  const storedAmp = useApp((s) => s.prefs.amp);
   const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
+  const amp = hydrated ? normalizeAmp(storedAmp) : AMP_PRESETS.clean;
   const setPrefs = useApp((s) => s.setPrefs);
-  const audio = useSoloAudio(leadTone);
+  const audio = useSoloAudio(leadTone, amp);
   const [open, setOpen] = useState(false);
   const [map, setMap] = useState<MapRequest>(DEFAULT_MAP);
 
@@ -43,7 +46,9 @@ export default function LeadSoloPage() {
     <div className="theory-page solo-page mx-auto max-w-6xl space-y-12" data-testid="solo-page">
       <SoloHero
         leadTone={leadTone}
-        onLeadTone={(t) => setPrefs({ leadTone: t })}
+        amp={amp}
+        onTone={(t) => setPrefs({ leadTone: t })}
+        onAmp={(a) => setPrefs({ amp: a })}
         onOpenMap={() => showMap(DEFAULT_MAP)}
       />
 

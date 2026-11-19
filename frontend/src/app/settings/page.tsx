@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageTitle } from "@/components/AppShell";
 import { Fretboard } from "@/components/Fretboard";
-import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { AmpRack } from "@/components/AmpRack";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { normalizeLeadTone } from "@/lib/audio/leadTone";
 import { useApp, useHydrated } from "@/lib/store";
 import type { InstructionMode, MarkerLabel, SkillLevel, Style, TechniquesMode, ViewMode } from "@/lib/types";
@@ -66,12 +67,13 @@ export default function SettingsPage() {
           <Segmented<TechniquesMode> name="Lead solo techniques" value={prefs.techniques} onChange={(v) => setPrefs({ techniques: v })}
             options={[["auto", "Match my level"], ["none", "Plain notes"], ["slides", "Slides & legato"], ["all", "Everything"]]} />
         </Row>
-        <Row label="Lead tone" hint="Amp sound for licks and guided solos on Solo, Diagonal, Greats, and Backing.">
-          <LeadToneSelector
-            value={normalizeLeadTone(prefs.leadTone)}
-            onChange={(t) => setPrefs({ leadTone: t })}
-            testId="settings-lead-tone"
-            hint={false}
+        <Row label="Lead amp" hint="Model and knobs for licks and guided solos (Solo, Diagonal, Greats, Backing, Solo in any key).">
+          <AmpRack
+            tone={normalizeLeadTone(prefs.leadTone)}
+            amp={normalizeAmp(prefs.amp ?? AMP_PRESETS.clean)}
+            onTone={(t) => setPrefs({ leadTone: t })}
+            onAmp={(a) => setPrefs({ amp: a })}
+            testId="settings-amp"
           />
         </Row>
         <Row label="Hand on the fretboard" hint="A see-through hand shows where every finger sits.">

@@ -1,5 +1,6 @@
 // TypeScript mirrors of the backend's Pydantic schemas (backend/app/schemas.py).
 
+import type { AmpKnobs, SavedAmpPreset } from "./audio/amp";
 import type { LeadTone } from "./audio/leadTone";
 
 export type SkillLevel = "zero" | "few_notes" | "basic_chords" | "intermediate" | "advanced";
@@ -9,7 +10,7 @@ export type ViewMode = "beginner" | "chart" | "facing" | "vertical";
 export type InstructionMode = "text" | "voice" | "both" | "silent";
 export type HarmonizationKind = "simple" | "genre" | "alternative";
 export type Genre = "rock" | "pop" | "blues";
-export type Technique = "slide_up" | "slide_down" | "hammer_on" | "pull_off" | "bend" | "bend_release";
+export type Technique = "slide_up" | "slide_down" | "hammer_on" | "pull_off" | "bend" | "bend_release" | "palm_mute";
 export type TechniquesMode = "auto" | "none" | "slides" | "all";
 export type MarkerLabel = "finger" | "interval" | "note";
 export type Part = "solo" | "lead" | "melody";
@@ -304,4 +305,10 @@ export interface UserPreferences {
   autoReadAloud: boolean;
   /** Lead / practice amp tone for licks and guided solos. */
   leadTone: LeadTone;
+  /** Amp knobs (0–10) shaping the lead tone. */
+  amp: AmpKnobs;
+  /** User-saved amp snapshots (tone + knobs). Click one to make it active. */
+  ampPresets: SavedAmpPreset[];
+  /** Id of the saved preset currently loaded, or null if knobs were dialed freely. */
+  activeAmpPresetId: string | null;
 }

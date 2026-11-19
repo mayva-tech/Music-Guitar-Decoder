@@ -29,14 +29,21 @@ export function frameOf(s: FrameState): Frame {
 
 const minorKey = (f: Family) => f === "minor";
 
-/** Sound of a variation: its two-bar phrase over a vamp of its chord. */
-export function motifSound(v: Variation, frame: Frame, flats: boolean): { sound: LeadSound; notes: NeckLine } {
+/** Neck overlay for a variation's two-bar phrase (no audio — keep render cheap). */
+export function motifLine(v: Variation, frame: Frame, flats: boolean): NeckLine {
   const chord = chordSymbol(frame.tonic, v.vamp, flats);
   const pcs = parseChord(chord)?.pcs ?? [];
   const { notes, roles } = compileMotif(v.id, v.motif, frame, pcs);
+  return { notes, roles, mode: "rings" };
+}
+
+/** Full Theory player payload for a variation — build this on Play, not while rendering cards. */
+export function motifSound(v: Variation, frame: Frame, flats: boolean): { sound: LeadSound; notes: NeckLine } {
+  const notes = motifLine(v, frame, flats);
+  const chord = chordSymbol(frame.tonic, v.vamp, flats);
   return {
-    sound: lineSound([chord, chord], notes, { bpm: 92, style: v.vamp === "7" ? "shuffle" : "pop" }),
-    notes: { notes, roles, mode: "rings" },
+    sound: lineSound([chord, chord], notes.notes, { bpm: 92, style: v.vamp === "7" ? "shuffle" : "pop" }),
+    notes,
   };
 }
 
@@ -205,6 +212,56 @@ function RootChart({ tonic, minor, anchor, onPick }: { tonic: number; minor: boo
   );
 }
 
+function VariationCard({
+  v, frame, keyFlats, win, playKey, playing, audio, onUse,
+}: {
+  v: Variation;
+  frame: Frame;
+  keyFlats: boolean;
+  win: { from: number; to: number };
+  playKey: string;
+  playing: boolean;
+  audio: MovableAudio;
+  onUse: () => void;
+}) {
+  const line = useMemo(() => motifLine(v, frame, keyFlats), [v, frame, keyFlats]);
+  const dots = useMemo(() => frameDots(frame, v, "degree", keyFlats), [frame, v, keyFlats]);
+  const scope = `mv-var-${v.id}`;
+  const over = pretty(chordSymbol(frame.tonic, v.vamp, keyFlats));
+
+  return (
+    <article className="surface flex flex-col gap-2 p-3" data-hl-scope={scope} data-testid={`mv-card-${v.id}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="font-bold leading-tight">{v.name}</h3>
+        <span className="text-[0.65rem] uppercase tracking-wide text-muted">{v.arpeggio ? "arpeggio" : v.adds.length ? `+${v.adds.length} note${v.adds.length > 1 ? "s" : ""}` : "core"}</span>
+      </div>
+      <p className="flex flex-wrap gap-1" aria-label="Formula">
+        {v.intervals.map((i) => (
+          <span key={i} className="rounded px-1.5 py-0.5 font-mono text-xs"
+            style={v.adds.includes(i) ? { background: "var(--color-next)", color: "var(--color-tolex)" } : { background: "var(--color-panel-2)" }}>
+            {degreeLabel(i, v.sharp4)}
+          </span>
+        ))}
+      </p>
+      <p className="text-xs text-muted"><span className="text-ink">Over:</span> {v.useOver}</p>
+      <p className="text-sm leading-relaxed">{v.text}</p>
+      <div className="rounded-lg bg-tolex/40 p-1">
+        <PatternNeck compact from={win.from} to={win.to} frame={frame} dots={dots} line={line}
+          ariaLabel={`${v.name} in the frame`} />
+      </div>
+      <div className="mt-auto flex flex-wrap gap-2">
+        <PlayButton small playing={playing} testId={`mv-hear-${v.id}`}
+          onClick={() => audio.toggle(playKey, scope, () => motifSound(v, frame, keyFlats).sound)}>
+          Hear it over {over}
+        </PlayButton>
+        <a href="#frame" className="btn btn-quiet btn-sm" onClick={() => { audio.stop(); onUse(); }} data-testid={`mv-use-${v.id}`}>
+          Show in the frame
+        </a>
+      </div>
+    </article>
+  );
+}
+
 /** Section 2: every variation of the current frame as a card, with its phrase. */
 export function VariationCards({
   state, set, audio,
@@ -228,43 +285,19 @@ export function VariationCards({
         onChange={(f) => { audio.stop(); set({ family: f, varId: f === "minor" ? "minor-pent" : "major-pent", place: 0 }); }}
         options={[{ value: "minor", label: "Minor frame variations" }, { value: "major", label: "Major frame variations" }]} />
       <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
-        {list.map((v) => {
-          const key = `card:${v.id}:${frame.tonic}:${frame.rootFret}:${state.anchor}`;
-          const m = motifSound(v, frame, keyFlats);
-          const dots = frameDots(frame, v, "degree", keyFlats);
-          const scope = `mv-var-${v.id}`;
-          return (
-            <article key={v.id} className="surface flex flex-col gap-2 p-3" data-hl-scope={scope} data-testid={`mv-card-${v.id}`}>
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="font-bold leading-tight">{v.name}</h3>
-                <span className="text-[0.65rem] uppercase tracking-wide text-muted">{v.arpeggio ? "arpeggio" : v.adds.length ? `+${v.adds.length} note${v.adds.length > 1 ? "s" : ""}` : "core"}</span>
-              </div>
-              <p className="flex flex-wrap gap-1" aria-label="Formula">
-                {v.intervals.map((i) => (
-                  <span key={i} className="rounded px-1.5 py-0.5 font-mono text-xs"
-                    style={v.adds.includes(i) ? { background: "var(--color-next)", color: "var(--color-tolex)" } : { background: "var(--color-panel-2)" }}>
-                    {degreeLabel(i, v.sharp4)}
-                  </span>
-                ))}
-              </p>
-              <p className="text-xs text-muted"><span className="text-ink">Over:</span> {v.useOver}</p>
-              <p className="text-sm leading-relaxed">{v.text}</p>
-              <div className="rounded-lg bg-tolex/40 p-1">
-                <PatternNeck compact from={win.from} to={win.to} frame={frame} dots={dots} line={m.notes}
-                  ariaLabel={`${v.name} in the frame`} />
-              </div>
-              <div className="mt-auto flex flex-wrap gap-2">
-                <PlayButton small playing={audio.playingKey === key} testId={`mv-hear-${v.id}`}
-                  onClick={() => audio.toggle(key, scope, () => m.sound)}>
-                  Hear it over {pretty(chordSymbol(frame.tonic, v.vamp, keyFlats))}
-                </PlayButton>
-                <a href="#frame" className="btn btn-quiet btn-sm" onClick={() => { audio.stop(); set({ varId: v.id }); }} data-testid={`mv-use-${v.id}`}>
-                  Show in the frame
-                </a>
-              </div>
-            </article>
-          );
-        })}
+        {list.map((v) => (
+          <VariationCard
+            key={v.id}
+            v={v}
+            frame={frame}
+            keyFlats={keyFlats}
+            win={win}
+            playKey={`card:${v.id}:${frame.tonic}:${frame.rootFret}:${state.anchor}`}
+            playing={audio.playingKey === `card:${v.id}:${frame.tonic}:${frame.rootFret}:${state.anchor}`}
+            audio={audio}
+            onUse={() => set({ varId: v.id })}
+          />
+        ))}
       </div>
     </section>
   );

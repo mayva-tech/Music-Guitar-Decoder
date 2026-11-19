@@ -163,7 +163,7 @@ def test_scale_positions_for_overlay():
 @pytest.mark.parametrize("tech,bend,vib,tok", [
     (None, None, False, "7"), ("bend", 2, False, "7b9"), ("bend", 1, True, "7b8~"), ("bend_release", 2, False, "7b9r7"),
     ("slide_up", None, False, "/7"), ("slide_down", None, False, "\\7"), ("hammer_on", None, False, "h7"),
-    ("pull_off", None, False, "p7"), (None, None, True, "7~"),
+    ("pull_off", None, False, "p7"), ("palm_mute", None, False, "m7"), (None, None, True, "7~"),
 ])
 def test_tab_tokens_roundtrip(tech, bend, vib, tok):
     n = NoteEvent(midi=69 + (bend if tech == "bend" else 0), start_beat=0, duration_beats=1, string=2, fret=10, finger=3,

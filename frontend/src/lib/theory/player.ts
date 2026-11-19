@@ -2,9 +2,12 @@
  * Plays TheoryExample events through Tone, lighting visuals via onHighlight.
  * Uses the app guitar/bass/drum voices where possible; organ is a plain sine.
  */
+import {
+  ampSignature, DEFAULT_AMP, driveFromAmp, knobToDb, masterDb, muteFromAmp, normalizeAmp, spaceFromAmp, type AmpKnobs,
+} from "@/lib/audio/amp";
 import { getEngine, loadTone, playLead } from "@/lib/audio/engine";
 import { DEFAULT_LEAD_TONE, type LeadTone } from "@/lib/audio/leadTone";
-import { articulation } from "@/lib/audio/timeline";
+import { articulation, palmMuteGate, withPalmMute } from "@/lib/audio/timeline";
 import { midiToFreq } from "@/lib/music/theory";
 import { TONES, warmToneKind, type WarmToneKind } from "@/lib/audio/guitarTone";
 import type { PlayableNote } from "@/lib/types";
@@ -21,6 +24,8 @@ export interface PlayOptions {
   lead?: PlayableNote[];
   /** Amp tone for the lead voice (clean / crunch / distortion / wah / blues). */
   leadTone?: LeadTone;
+  /** Amp knobs (0–10). Defaults to a neutral centre if omitted. */
+  amp?: AmpKnobs;
   /** Reschedule the example back to back until stop(). */
   loop?: boolean;
   /**
@@ -66,57 +71,81 @@ interface LeadVoice {
 }
 interface LeadRig {
   tone: LeadTone;
+  /** Rebuild when model or knobs change. */
+  signature: string;
   pools: Record<"bass" | "g", LeadVoice[]>;
 }
 
-/** Amp-style drive stages (pre-gain → soft clip → makeup). Keep levels conservative — heavy FX can crack. */
-const DRIVE = {
-  crunch: { pre: 2.2, distortion: 0.32, post: 0.6 },
-  /** Triple high-gain stack for saturated heavy-metal lead. */
-  distortion: { pre: 9.5, distortion: 1, post: 0.12, stage2: 0.95, stage3: 0.85 },
-  blues: { pre: 1.7, distortion: 0.22, post: 0.72 },
-  wah: { pre: 1.9, distortion: 0.28, post: 0.55 },
-} as const;
-
-function buildLeadRig(Tone: ToneMod, kit: Kit, tone: LeadTone): LeadRig {
+function buildLeadRig(Tone: ToneMod, kit: Kit, tone: LeadTone, ampIn?: AmpKnobs): LeadRig {
+  const amp = normalizeAmp(ampIn ?? DEFAULT_AMP);
+  const drive = driveFromAmp(tone, amp);
   const keep = <N extends { dispose(): unknown }>(n: N) => (kit.fx.push(n), n);
-  // Same cab as the engine's lead voices; drive / wah sit in front of it.
+  const bassDb = knobToDb(amp.bass, 9);
+  const midDb = knobToDb(amp.mid, 8);
+  const trebleDb = knobToDb(amp.treble, 8);
+  const presenceDb = knobToDb(amp.presence, 8);
+  const space = spaceFromAmp(amp);
+
   const chain = (lpHz: number, hpHz: number): import("tone").InputNode => {
-    // Metal: tight lows + deep scoop + dark cab so max gain stays thick, not fizzy.
-    const cabHp = tone === "distortion" ? Math.max(hpHz, 220) : hpHz;
-    const cabLp = tone === "blues" ? lpHz * 0.78 : tone === "distortion" ? Math.min(lpHz * 0.42, 2200) : lpHz;
+    const cabHp = tone === "distortion" ? Math.max(hpHz, 200) : hpHz;
+    const cabLp = tone === "blues"
+      ? lpHz * 0.78
+      : tone === "distortion"
+        ? Math.min(lpHz * 0.42, 2200)
+        : Math.min(lpHz * (0.85 + (amp.treble / 10) * 0.35), 4800);
     const hp = keep(new Tone.Filter(cabHp, "highpass"));
     const lp = keep(new Tone.Filter({
       type: "lowpass",
       frequency: cabLp,
       rolloff: tone === "distortion" ? -24 : -12,
     }));
-    hp.connect(lp);
-    if (tone === "distortion") {
-      const scoop = keep(new Tone.Filter({ type: "notch", frequency: 680, Q: 1.1 }));
-      const presence = keep(new Tone.Filter({ type: "peaking", frequency: 3200, Q: 0.9, gain: 4 }));
-      lp.connect(scoop);
-      scoop.connect(presence);
-      presence.connect(kit.bus);
-    } else {
-      lp.connect(kit.bus);
-    }
-    if (tone === "clean") return hp;
+    // Tone stack after the cab.
+    const bass = keep(new Tone.Filter({ type: "peaking", frequency: 160, Q: 0.7, gain: 2.5 + bassDb }));
+    const mid = keep(new Tone.Filter({ type: "peaking", frequency: 560, Q: 0.85, gain: (tone === "distortion" ? -1.5 : 1.5) + midDb }));
+    const treble = keep(new Tone.Filter({ type: "peaking", frequency: 2400, Q: 0.8, gain: trebleDb }));
+    const presence = keep(new Tone.Filter({ type: "peaking", frequency: 3600, Q: 0.9, gain: (tone === "clean" ? -2 : 1) + presenceDb }));
 
-    const drive = DRIVE[tone === "wah" ? "wah" : tone];
+    // Time FX after the amp: delay (with feedback) → reverb → bus.
+    const delay = keep(new Tone.FeedbackDelay({
+      delayTime: space.delayTime,
+      feedback: space.feedback,
+      wet: space.delayWet,
+    }));
+    const reverb = keep(new Tone.Freeverb({
+      roomSize: space.roomSize,
+      dampening: space.dampening,
+    }));
+    reverb.wet.value = space.reverbWet;
+
+    hp.connect(lp);
+    lp.connect(bass);
+    bass.connect(mid);
+    mid.connect(treble);
+    treble.connect(presence);
+    const intoFx = (() => {
+      if (tone === "distortion") {
+        const scoop = keep(new Tone.Filter({ type: "notch", frequency: 700, Q: 1.0 }));
+        presence.connect(scoop);
+        return scoop;
+      }
+      return presence;
+    })();
+    intoFx.connect(delay);
+    delay.connect(reverb);
+    reverb.connect(kit.bus);
+
     const pre = keep(new Tone.Gain(drive.pre));
     const dist = keep(new Tone.Distortion({ distortion: drive.distortion, oversample: "4x" }));
     const post = keep(new Tone.Gain(drive.post));
     pre.connect(dist);
 
-    if (tone === "distortion" && "stage2" in drive) {
-      // Three clip stages = saturated metal wall without one insane single waveshaper.
-      const mid = keep(new Tone.Gain(2.6));
+    if (tone === "distortion" && drive.stage2 != null && drive.stage3 != null) {
+      const midG = keep(new Tone.Gain(2.4));
       const dist2 = keep(new Tone.Distortion({ distortion: drive.stage2, oversample: "4x" }));
-      const mid2 = keep(new Tone.Gain(2.2));
+      const mid2 = keep(new Tone.Gain(2.0));
       const dist3 = keep(new Tone.Distortion({ distortion: drive.stage3, oversample: "4x" }));
-      dist.connect(mid);
-      mid.connect(dist2);
+      dist.connect(midG);
+      midG.connect(dist2);
       dist2.connect(mid2);
       mid2.connect(dist3);
       dist3.connect(post);
@@ -142,19 +171,22 @@ function buildLeadRig(Tone: ToneMod, kit: Kit, tone: LeadTone): LeadRig {
     post.connect(hp);
     return pre;
   };
+
+  const vol = masterDb(tone, amp);
   const mk = (opts: typeof TONES.lead, lpHz: number, hpHz: number): LeadVoice[] => {
     const dest = chain(lpHz, hpHz);
     return [0, 1].map(() => {
       const synth = keep(new Tone.MonoSynth(opts).connect(dest));
-      synth.volume.value = tone === "distortion" ? -12 : tone === "wah" ? -5 : -4;
+      synth.volume.value = vol;
       return { synth, busyUntil: 0 };
     });
   };
   return {
     tone,
+    signature: ampSignature(tone, amp),
     pools: {
-      bass: mk(TONES.leadLow, 4200, 100),
-      g: mk(TONES.leadG, 4800, 95),
+      bass: mk(TONES.leadLow, 3600, 80),
+      g: mk(TONES.leadG, 4000, 75),
     },
   };
 }
@@ -177,30 +209,41 @@ function buildKit(Tone: ToneMod): Kit {
   // Shared bus so stop can fade to silence instead of hard-cutting disposed nodes.
   const bus = keep(new Tone.Gain(1).toDestination());
 
+  // Shared clean cab for chord / scale plucks: body + punch, cut tin.
+  const pluckCabIn = (() => {
+    const hp = keep(new Tone.Filter(75, "highpass"));
+    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: 4000, rolloff: -12 }));
+    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: 4.5 }));
+    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: 3.8 }));
+    const tin = keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
+    hp.chain(lp, body, punch, tin, bus);
+    return hp;
+  })();
+
   const pluckNormal = new Tone.PolySynth({
     voice: Tone.MonoSynth,
     options: TONES.melodyG,
     maxPolyphony: 16,
-  }).connect(bus);
+  }).connect(pluckCabIn);
   // Guitar plucks quieter than bass so the root line reads clearly.
-  pluckNormal.volume.value = -14;
+  pluckNormal.volume.value = -12;
 
   const pluckBright = new Tone.PolySynth({
     voice: Tone.MonoSynth,
     options: {
       ...TONES.melodyG,
-      filterEnvelope: { ...TONES.melodyG.filterEnvelope, baseFrequency: 720, octaves: 2.8 },
+      filterEnvelope: { ...TONES.melodyG.filterEnvelope, baseFrequency: 560, octaves: 2.7 },
     },
     maxPolyphony: 12,
-  }).connect(bus);
-  pluckBright.volume.value = -14;
+  }).connect(pluckCabIn);
+  pluckBright.volume.value = -12;
 
   const pluckWarm = new Tone.PolySynth({
     voice: Tone.MonoSynth,
     options: TONES.melodyLow,
     maxPolyphony: 12,
-  }).connect(bus);
-  pluckWarm.volume.value = -13;
+  }).connect(pluckCabIn);
+  pluckWarm.volume.value = -11;
 
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
@@ -407,8 +450,10 @@ class TheoryPlayerImpl implements TheoryPlayer {
 
     const lead = opts?.lead && opts.lead.length ? [...opts.lead].sort((a, b) => a.start_beat - b.start_beat) : null;
     const wantTone = opts?.leadTone ?? DEFAULT_LEAD_TONE;
-    if (lead && (!kit.lead || kit.lead.tone !== wantTone)) {
-      try { kit.lead = buildLeadRig(Tone, kit, wantTone); } catch { kit.lead = null; }
+    const wantAmp = normalizeAmp(opts?.amp ?? DEFAULT_AMP);
+    const wantSig = ampSignature(wantTone, wantAmp);
+    if (lead && (!kit.lead || kit.lead.signature !== wantSig)) {
+      try { kit.lead = buildLeadRig(Tone, kit, wantTone, wantAmp); } catch { kit.lead = null; }
     }
     // Per-string previous note (for slides / legato), in beat order. Same for every pass.
     const leadPrev = new Map<PlayableNote, PlayableNote | undefined>();
@@ -425,8 +470,8 @@ class TheoryPlayerImpl implements TheoryPlayer {
     const beatSec = 60 / cur.bpm;
     // A pass may carry its own lead line (backing tracks change it bar by bar); otherwise use opts.lead.
     const passLead = cur.lead && cur.lead.length ? [...cur.lead].sort((a, b) => a.start_beat - b.start_beat) : lead;
-    if (passLead && (!kit.lead || kit.lead.tone !== wantTone)) {
-      try { kit.lead = buildLeadRig(Tone, kit, wantTone); } catch { kit.lead = null; }
+    if (passLead && (!kit.lead || kit.lead.signature !== wantSig)) {
+      try { kit.lead = buildLeadRig(Tone, kit, wantTone, wantAmp); } catch { kit.lead = null; }
     }
     const passPrev = passLead === lead ? leadPrev : new Map<PlayableNote, PlayableNote | undefined>();
     if (passLead && passLead !== lead) {
@@ -510,15 +555,18 @@ class TheoryPlayerImpl implements TheoryPlayer {
     }
 
     const rig = kit.lead;
+    const ampMute = muteFromAmp(wantAmp);
     if (passLead && rig) {
       for (const n of passLead) {
         const at = t0 + n.start_beat * beatSec;
-        const dur = Math.max(0.08, n.duration_beats * beatSec * 0.96);
+        const art = withPalmMute(articulation(n, passPrev.get(n)), ampMute);
+        const rawDur = Math.max(0.08, n.duration_beats * beatSec * 0.96);
+        const dur = palmMuteGate(rawDur, art?.palmMute ?? 0);
         try {
           const kind = warmToneKind(n.string, n.midi);
           const voice = claimLeadVoice(rig, kind, at, dur);
           const vel = kind === "bass" ? 0.9 : 0.8;
-          playLead(voice.synth, n.midi, at, dur, vel, articulation(n, passPrev.get(n)));
+          playLead(voice.synth, n.midi, at, dur, vel, art);
         } catch {
           /* one bad note must not abort the lick */
         }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { AMP_PRESETS, normalizeAmp, normalizeAmpPresets } from "./audio/amp";
 import { normalizeLeadTone } from "./audio/leadTone";
 import type { Arrangement, DetectedMelody, HarmonizeResponse, PracticeSessionRecord, UserPreferences } from "./types";
 
@@ -29,6 +30,9 @@ export const DEFAULT_PREFS: UserPreferences = {
   developerMode: false,
   autoReadAloud: true,
   leadTone: "clean",
+  amp: { ...AMP_PRESETS.clean },
+  ampPresets: [],
+  activeAmpPresetId: null,
 };
 
 export interface AppState {
@@ -84,6 +88,10 @@ export const useApp = create<AppState>()(
         const p = (persisted ?? {}) as Partial<AppState>;
         const prefs = { ...DEFAULT_PREFS, ...(p.prefs ?? {}) };
         prefs.leadTone = normalizeLeadTone(prefs.leadTone);
+        prefs.amp = normalizeAmp(prefs.amp ?? AMP_PRESETS[prefs.leadTone]);
+        prefs.ampPresets = normalizeAmpPresets(prefs.ampPresets);
+        const activeId = typeof prefs.activeAmpPresetId === "string" ? prefs.activeAmpPresetId : null;
+        prefs.activeAmpPresetId = activeId && prefs.ampPresets.some((x) => x.id === activeId) ? activeId : null;
         return { ...current, ...p, prefs };
       },
     },

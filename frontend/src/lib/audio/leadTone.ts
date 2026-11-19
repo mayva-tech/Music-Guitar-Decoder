@@ -4,7 +4,7 @@
  */
 
 export const LEAD_TONES = [
-  { id: "clean", label: "Clean", blurb: "Clear amp, no drive." },
+  { id: "clean", label: "Clean", blurb: "Clean amp with string bite and body." },
   { id: "crunch", label: "Crunch", blurb: "Mild amp breakup." },
   { id: "distortion", label: "Distortion", blurb: "Heavy metal wall: saturated high-gain stack." },
   { id: "wah", label: "Wah", blurb: "Auto-wah sweep on the lead." },

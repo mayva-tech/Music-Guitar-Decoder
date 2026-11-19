@@ -7,11 +7,12 @@ import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { GenreIntro, GenrePicker, LoopPlayer, TrackList } from "@/components/backing/BackingParts";
 import { SoloGuide } from "@/components/backing/SoloGuide";
 import { useBackingAudio, type LoopSettings } from "@/components/backing/useBackingAudio";
-import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { AmpRack } from "@/components/AmpRack";
 import {
   GENRES, GENRES_BY_ID, TRACKS_BY_ID, chordsOf, tracksFor,
   type BackingTrack, type GenreId, type TempoBand,
 } from "@/lib/music/backingTracks";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { BOX_MODES } from "@/lib/music/soloGuide";
 import { guideLick, type LickStyle } from "@/lib/music/backingSolo";
@@ -43,8 +44,10 @@ export default function BackingTracksPage() {
   const audio = useBackingAudio(scopeRef);
   const hydrated = useHydrated();
   const storedTone = useApp((st) => st.prefs.leadTone);
+  const storedAmp = useApp((st) => st.prefs.amp);
   const setPrefs = useApp((st) => st.setPrefs);
   const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
+  const amp = hydrated ? normalizeAmp(storedAmp) : AMP_PRESETS.clean;
   const [lickStyle, setLickStyle] = useState<LickStyle>("long");
   const [lickOn, setLickOn] = useState(false);
   const [genreId, setGenreId] = useState<GenreId>("rock");
@@ -64,8 +67,8 @@ export default function BackingTracksPage() {
 
   /** Starts a loop with its settings, plus the suggested lick on the lead voice when that is switched on. */
   const startLoop = useCallback((t: BackingTrack, s: LoopSettings) => {
-    audio.start(t, { ...s, lick: lickOn ? guideLick(t, lickStyle) : null, leadTone });
-  }, [audio, lickOn, lickStyle, leadTone]);
+    audio.start(t, { ...s, lick: lickOn ? guideLick(t, lickStyle) : null, leadTone, amp });
+  }, [audio, lickOn, lickStyle, leadTone, amp]);
 
   // Lick on/off or a new style applies from the next bar while the loop plays.
   const { playingId, update } = audio;
@@ -158,18 +161,22 @@ export default function BackingTracksPage() {
             <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
             <Link href="/riffs" className="btn btn-quiet btn-sm">Riff practice</Link>
           </div>
-          <LeadToneSelector
-            value={leadTone}
-            onChange={(t) => {
-              setPrefs({ leadTone: t });
-              if (audio.playingId === track.id) startLoop(track, { ...settings, leadTone: t });
-            }}
-            testId="backing-tone"
-            compact
-            hint={false}
-          />
         </div>
       </PageTitle>
+      <AmpRack
+        tone={leadTone}
+        amp={amp}
+        onTone={(t) => {
+          setPrefs({ leadTone: t });
+          if (audio.playingId === track.id) startLoop(track, { ...settings, leadTone: t, amp: AMP_PRESETS[t] });
+        }}
+        onAmp={(a) => {
+          setPrefs({ amp: a });
+          if (audio.playingId === track.id) startLoop(track, { ...settings, amp: a });
+        }}
+        testId="backing-amp"
+        compact
+      />
 
       <GenrePicker value={genreId} onChange={chooseGenre} />
 

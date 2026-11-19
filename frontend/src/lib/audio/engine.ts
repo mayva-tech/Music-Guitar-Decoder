@@ -50,42 +50,45 @@ interface Voices {
 function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Channel"]>>): Voices {
   const fx: { dispose(): unknown }[] = [];
   const keep = <N extends { dispose(): unknown }>(n: N) => (fx.push(n), n);
-  // Single HP + LP cab (theory-style). Keeps string character without cracky peaking stacks.
-  const cab = (lpHz: number, dest: import("tone").InputNode, hpHz = 85) => {
+  // Warm cab: thick body / punch mid, cut the 3 kHz tin, darker top.
+  const cab = (lpHz: number, dest: import("tone").InputNode, hpHz = 75) => {
     const hp = keep(new Tone.Filter(hpHz, "highpass"));
-    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: lpHz, rolloff: -12 }));
-    hp.chain(lp, dest);
+    const lp = keep(new Tone.Filter({ type: "lowpass", frequency: Math.min(lpHz, 4200), rolloff: -12 }));
+    const body = keep(new Tone.Filter({ type: "peaking", frequency: 180, Q: 0.7, gain: 4.5 }));
+    const punch = keep(new Tone.Filter({ type: "peaking", frequency: 520, Q: 0.85, gain: 3.8 }));
+    const tin = keep(new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.1, gain: -5.5 }));
+    hp.chain(lp, body, punch, tin, dest);
     return hp;
   };
   const makePunch = (dest: import("tone").InputNode, db: number): Punch => {
     const synth = keep(new Tone.MembraneSynth({
-      pitchDecay: 0.04, octaves: 3.2,
+      pitchDecay: 0.018, octaves: 1.4,
       oscillator: { type: "sine" },
-      envelope: { attack: 0.004, decay: 0.11, sustain: 0, release: 0.08 },
+      envelope: { attack: 0.001, decay: 0.055, sustain: 0, release: 0.04 },
     }));
     synth.connect(dest);
     synth.volume.value = db;
     return { synth, last: -1 };
   };
 
-  const melodyIn = cab(5600, ch.melody);
-  const melodyLowIn = cab(4200, ch.melody, 100);
-  const melodyGIn = cab(4800, ch.melody, 95);
+  const melodyIn = cab(4200, ch.melody);
+  const melodyLowIn = cab(3600, ch.melody, 90);
+  const melodyGIn = cab(4000, ch.melody, 85);
   const melody = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melody, maxPolyphony: 48 }).connect(melodyIn);
   const melodyLow = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melodyLow, maxPolyphony: 32 }).connect(melodyLowIn);
   const melodyG = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.melodyG, maxPolyphony: 48 }).connect(melodyGIn);
 
   // Solo / lead / rhythm: same clean path as melody (no waveshaper).
-  const soloIn = cab(5200, ch.solo);
-  const soloLowIn = cab(4000, ch.solo, 100);
-  const soloGIn = cab(4600, ch.solo, 95);
+  const soloIn = cab(4000, ch.solo);
+  const soloLowIn = cab(3400, ch.solo, 90);
+  const soloGIn = cab(3800, ch.solo, 85);
   const solo = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.solo, maxPolyphony: 48 }).connect(soloIn);
   const soloLow = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.soloLow, maxPolyphony: 32 }).connect(soloLowIn);
   const soloG = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.soloG, maxPolyphony: 48 }).connect(soloGIn);
 
-  const leadIn = cab(5400, ch.lead);
-  const leadLowIn = cab(4200, ch.lead, 100);
-  const leadGIn = cab(4800, ch.lead, 95);
+  const leadIn = cab(4100, ch.lead);
+  const leadLowIn = cab(3500, ch.lead, 90);
+  const leadGIn = cab(3900, ch.lead, 85);
   const lead = new Tone.MonoSynth(TONES.lead).connect(leadIn);
   const leadLow = new Tone.MonoSynth(TONES.leadLow).connect(leadLowIn);
   const leadG = new Tone.MonoSynth(TONES.leadG).connect(leadGIn);
@@ -93,17 +96,17 @@ function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Cha
   const rhythmIn = cab(3800, ch.backing, 100);
   const backing = new Tone.PolySynth({ voice: Tone.MonoSynth, options: TONES.backing, maxPolyphony: 32 }).connect(rhythmIn);
 
-  // Punch synths stay muted (API / thump hook); sub-octave thump made E/A sound like bass.
+  // Short same-register attack layer — pick weight without a bass-guitar sub.
   const punch = {
-    melody: makePunch(melodyLowIn, -60),
-    solo: makePunch(soloLowIn, -60),
-    lead: makePunch(leadLowIn, -60),
-    backing: makePunch(rhythmIn, -60),
+    melody: makePunch(melodyLowIn, -16),
+    solo: makePunch(soloLowIn, -15),
+    lead: makePunch(leadLowIn, -15),
+    backing: makePunch(rhythmIn, -18),
   };
   const punchG = {
-    melody: makePunch(melodyGIn, -60),
-    solo: makePunch(soloGIn, -60),
-    lead: makePunch(leadGIn, -60),
+    melody: makePunch(melodyGIn, -17),
+    solo: makePunch(soloGIn, -16),
+    lead: makePunch(leadGIn, -16),
   };
 
   const bassLp = keep(new Tone.Filter({ type: "lowpass", frequency: 900, rolloff: -24 }));
@@ -147,9 +150,15 @@ function buildVoices(Tone: ToneModule, ch: Record<TrackName, InstanceType<T["Cha
   };
 }
 
-/** Optional attack layer — disabled in practice (volume −60); kept for API stability. */
-function thump(_p: Punch, _at: number, _midi: number, _velocity: number) {
-  /* no-op: sub-octave thump made low guitar strings sound like a bass guitar */
+/** Short attack weight at ~note pitch (not a sub-octave bass thump). */
+function thump(p: Punch, at: number, midi: number, velocity: number) {
+  if (at - p.last < 0.014) return;
+  p.last = at;
+  const freq = midiToFreq(midi) * 0.92;
+  const vel = Math.min(0.5, velocity * 0.38);
+  try {
+    p.synth.triggerAttackRelease(freq, 0.05, at, vel);
+  } catch { /* ignore */ }
 }
 
 function disposeVoices(v: Voices) {
@@ -381,9 +390,10 @@ export class PlaybackEngine {
               const kind = warmToneKind(e.string, midi);
               const vel = Math.min(0.75, e.velocity * 0.9);
               playLead(leadFor(v, kind), midi, time, dur, vel, e.art);
-              if (!e.art?.legato) {
+              // Palm-muted chugs always get a pick thump; legato hammers stay soft.
+              if (!e.art?.legato || (e.art.palmMute ?? 0) > 0.2) {
                 const p = punchFor(v, "lead", kind);
-                if (p) thump(p, time, midi, vel);
+                if (p) thump(p, time, midi, vel * (1 + Math.min(0.35, (e.art?.palmMute ?? 0) * 0.35)));
               }
             });
             break;
@@ -513,39 +523,46 @@ export class PlaybackEngine {
 export function playLead(synth: InstanceType<T["MonoSynth"]>, midi: number, at: number, dur: number, vel: number, art?: Articulation) {
   const f = synth.frequency;
   const bend = art?.bendSemitones ?? 0;
+  const mute = Math.max(0, Math.min(1, art?.palmMute ?? 0));
+  // Palm mute: choke the ring into a short metal chug; punch the pick attack.
+  const gate = mute > 0.02 ? Math.max(0.028, Math.min(dur, 0.038 + (1 - mute) * 0.12)) : dur;
+  const attackVel = mute > 0.02
+    ? Math.min(1, vel * (1.1 + mute * 0.4))
+    : (art?.legato ? vel * 0.55 : vel);
   let startMidi = midi;
   if (art?.slideFromMidi != null) startMidi = art.slideFromMidi;
   else if (bend && !art?.release) startMidi = midi - bend;
-  synth.triggerAttack(midiToFreq(startMidi), at, art?.legato ? vel * 0.55 : vel);
+  synth.triggerAttack(midiToFreq(startMidi), at, attackVel);
   f.cancelScheduledValues(at);
   f.setValueAtTime(midiToFreq(startMidi), at);
   let t = at;
   if (art?.slideFromMidi != null) {
-    t = at + Math.min(0.09, dur * 0.4);
+    t = at + Math.min(0.09, gate * 0.4);
     f.exponentialRampToValueAtTime(midiToFreq(midi), t);
   }
-  if (bend) {
+  if (bend && mute < 0.45) {
     if (art?.release) {
-      const up = at + dur * 0.3, down = at + dur * 0.75;
-      f.setValueAtTime(midiToFreq(midi), at + dur * 0.08);
+      const up = at + gate * 0.3, down = at + gate * 0.75;
+      f.setValueAtTime(midiToFreq(midi), at + gate * 0.08);
       f.exponentialRampToValueAtTime(midiToFreq(midi + bend), up);
-      f.setValueAtTime(midiToFreq(midi + bend), down - dur * 0.15);
+      f.setValueAtTime(midiToFreq(midi + bend), down - gate * 0.15);
       f.exponentialRampToValueAtTime(midiToFreq(midi), down);
       t = down;
     } else {
-      t = at + Math.min(0.22, dur * 0.35);
+      t = at + Math.min(0.22, gate * 0.35);
       f.exponentialRampToValueAtTime(midiToFreq(midi), t);
     }
   }
-  if (art?.vibrato) {
+  // Vibrato needs sustain — skip it on choked chugs.
+  if (art?.vibrato && mute < 0.35) {
     const rate = 5.5, depth = 0.3; // semitones
     let k = 0;
-    for (let x = Math.max(t, at + dur * 0.35); x < at + dur - 0.05; x += 1 / (2 * rate), k++) {
+    for (let x = Math.max(t, at + gate * 0.35); x < at + gate - 0.05; x += 1 / (2 * rate), k++) {
       f.linearRampToValueAtTime(midiToFreq(midi + (k % 2 ? -depth : depth) / 2), x);
     }
   }
   // Freeze pitch at release so leftover glide automation can't pop when the oscillator stops.
-  const end = at + dur;
+  const end = at + gate;
   try {
     const cur = f.getValueAtTime(end);
     f.cancelScheduledValues(end);

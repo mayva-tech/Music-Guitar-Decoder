@@ -160,7 +160,7 @@ def test_blues_rock_techniques_and_fingers():
     assert info["iron-horse"].bar_chords[6] == "G5 A5"
     assert all(len(i.bar_chords) == i.bars for i in info.values())
     used = set().union(*(info[r.id].techniques for r in TWENTY))
-    assert {"bend", "bend_release", "hammer_on", "pull_off", "slide_up", "slide_down", "vibrato"} <= used
+    assert {"bend", "bend_release", "hammer_on", "pull_off", "slide_up", "slide_down", "vibrato", "palm_mute"} <= used
     for r in TWENTY:
         for n in riff_notes(r):
             if n.technique in ("bend", "bend_release"):
@@ -168,6 +168,8 @@ def test_blues_rock_techniques_and_fingers():
     # The texas shuffle hammers the b3 into the 3rd on every chord.
     texas = riff_notes(RIFFS_BY_ID["texas-two-step"])
     assert sum(1 for n in texas if n.technique == "hammer_on") == 24
+    iron = riff_notes(RIFFS_BY_ID["iron-horse"])
+    assert sum(1 for n in iron if n.technique == "palm_mute") >= 8
 
 
 def test_tab_notation_parser():
@@ -177,6 +179,8 @@ def test_tab_notation_parser():
     assert notes[6] == ("C5", 4.5, 1.0, {"s": 1, "f": 8, "tech": "slide_up"})
     assert notes[8] == ("E3", 6.5, 1.5, {"s": 4, "f": 2, "tech": "hammer_on"})  # after the rest
     assert notes[9] == ("G4", 8.0, 4.0, {"s": 2, "f": 8, "tech": "bend_release", "bend": 2, "fin": 3})  # fretted pitch
+    muted, _ = _tab("6:m0 6:m0 6:3 6:m0 5:0 5:h2 6:m0 6:3")
+    assert muted[0][3]["tech"] == "palm_mute" and muted[2][3].get("tech") is None
     with pytest.raises(ValueError):
         _tab("2:5 2:7")  # half a bar
     with pytest.raises(ValueError):

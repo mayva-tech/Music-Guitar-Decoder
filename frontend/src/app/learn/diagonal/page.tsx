@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { DiagonalPractice } from "@/components/diagonal/DiagonalPractice";
 import { LickChooser } from "@/components/diagonal/LickChooser";
 import { playKey, useDiagonalAudio } from "@/components/diagonal/useDiagonalAudio";
-import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { AmpRack } from "@/components/AmpRack";
 import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
 import { SectionHead, chordListFor } from "@/components/solo/shared";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { DIAGONAL_BY_ID, DIAGONAL_IDEAS, DIAGONAL_LICKS, PRACTICE_STEPS } from "@/lib/music/diagonalLicks";
 import { useApp, useHydrated } from "@/lib/store";
@@ -17,9 +18,11 @@ const FIRST = DIAGONAL_LICKS[0]!.lick.id;
 export default function DiagonalLicksPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
+  const storedAmp = useApp((s) => s.prefs.amp);
   const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
+  const amp = hydrated ? normalizeAmp(storedAmp) : AMP_PRESETS.clean;
   const setPrefs = useApp((s) => s.setPrefs);
-  const audio = useDiagonalAudio(leadTone);
+  const audio = useDiagonalAudio(leadTone, amp);
   const [selected, setSelected] = useState(FIRST);
   const [mapOpen, setMapOpen] = useState(false);
 
@@ -60,13 +63,15 @@ export default function DiagonalLicksPage() {
             <Link href="/learn/backing" className="btn btn-quiet btn-sm">Backing tracks</Link>
           </div>
         </div>
-        <LeadToneSelector
-          value={leadTone}
-          onChange={(t) => setPrefs({ leadTone: t })}
-          testId="dg-tone"
-          compact
-        />
       </header>
+      <AmpRack
+        tone={leadTone}
+        amp={amp}
+        onTone={(t) => setPrefs({ leadTone: t })}
+        onAmp={(a) => setPrefs({ amp: a })}
+        testId="dg-amp"
+        compact
+      />
 
       <section aria-labelledby="dg-why-heading" className="space-y-4">
         <SectionHead id="dg-why-heading" eyebrow="Why diagonal" title="Not up and down the scale">

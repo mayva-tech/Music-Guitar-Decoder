@@ -168,6 +168,7 @@ export function ScaleFretmapFloat({
 
   useEffect(() => {
     if (!open) return;
+    setPos((p) => clampToViewport(p));
     const onResize = () => setPos((p) => clampToViewport(p));
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -289,25 +290,22 @@ export function ScaleFretmapFloat({
       role="dialog"
       aria-label={`${scaleDisplayName(root, mode)} fretboard map`}
       className="fixed z-[9999] flex w-[min(96vw,960px)] min-w-[280px] max-w-[96vw] resize flex-col overflow-hidden rounded-2xl border border-line bg-panel-2/95 shadow-2xl backdrop-blur-sm"
-      style={{ left: pos.x, top: pos.y, maxHeight: solo ? "min(92vh, 900px)" : "min(82vh, 760px)" }}
+      style={{ left: pos.x, top: pos.y, maxHeight: floatMaxHeight() }}
     >
       <div
-        className="flex cursor-grab items-center gap-2 border-b border-line px-3 py-2.5 touch-none active:cursor-grabbing"
+        className="flex cursor-grab items-center gap-1.5 border-b border-line px-2 py-1 touch-none active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <span className={`text-[0.65rem] uppercase tracking-wide text-muted ${solo ? "max-[519px]:hidden" : ""}`}>⠿ Drag</span>
+        <span className={`text-[0.6rem] uppercase tracking-wide text-muted ${solo ? "max-[519px]:hidden" : ""}`}>⠿</span>
         <span className="shrink-0 text-sm font-semibold">Fretboard map</span>
         <div
-          className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto"
+          className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto"
           data-testid="scale-related-chords"
           title={chordList ? "Tap a chord to ring its notes on the neck" : "Tap a chord to show finger placement on the neck"}
         >
-          <span className={`shrink-0 text-[0.65rem] uppercase tracking-wide text-muted ${solo ? "max-[519px]:hidden" : ""}`}>
-            {chordList ? "Chord tones" : "Chords"}
-          </span>
           {chordList?.map((sym) => {
             const parsed = parseChord(sym);
             const rootName = parsed ? pitchClassName(parsed.root + 60) : sym.match(/^[A-G]#?/)?.[0] ?? sym;
@@ -351,18 +349,21 @@ export function ScaleFretmapFloat({
             );
           })}
         </div>
-        <button type="button" className="btn btn-quiet btn-sm shrink-0 px-2 py-0.5 text-xs" aria-label="Close fretboard map"
+        <button type="button" className="btn btn-quiet shrink-0 px-2 py-0.5 text-xs" aria-label="Close fretboard map"
           onClick={() => onOpenChange(false)}>Close</button>
       </div>
 
-      <div className="grid gap-2 border-b border-line px-3 py-2" data-testid="scale-fretmap-controls">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs text-muted">Root</span>
+      {/* Dense single-block controls so the neck gets the vertical space. */}
+      <div className="flex flex-col gap-1 border-b border-line px-2 py-1.5" data-testid="scale-fretmap-controls">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-0.5 text-[0.7rem] uppercase tracking-wide text-muted">Root</span>
           {SCALE_ROOTS.map((r) => (
             <button
               key={r}
               type="button"
-              className={`btn btn-sm min-w-[2rem] px-2 ${root === r ? "btn-primary" : "btn-quiet"}`}
+              className={`min-w-[1.75rem] rounded-full px-2 py-0.5 text-xs font-semibold ${
+                root === r ? "bg-maple text-tolex" : "bg-panel text-muted hover:text-ink"
+              }`}
               aria-pressed={root === r}
               data-testid={`scale-root-${r}`}
               onClick={() => setRoot(r)}
@@ -370,14 +371,35 @@ export function ScaleFretmapFloat({
               {r}
             </button>
           ))}
+          {boxAvailable && (
+            <>
+              <span className="ml-1 mr-0.5 text-[0.7rem] uppercase tracking-wide text-muted" data-testid="scale-box-row">Box</span>
+              {[0, 1, 2, 3, 4, 5].map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  className={`min-w-[1.75rem] rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    box === b ? "bg-maple text-tolex" : "bg-panel text-muted hover:text-ink"
+                  }`}
+                  aria-pressed={box === b}
+                  data-testid={`scale-box-${b}`}
+                  onClick={() => setBox(b)}
+                >
+                  {b === 0 ? "All" : b}
+                </button>
+              ))}
+            </>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs text-muted">Scale</span>
+        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto">
+          <span className="mr-0.5 shrink-0 text-[0.7rem] uppercase tracking-wide text-muted">Scale</span>
           {SCALE_KINDS.map((k) => (
             <button
               key={k.id}
               type="button"
-              className={`btn btn-sm ${mode === k.id ? "btn-primary" : "btn-quiet"}`}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                mode === k.id ? "bg-maple text-tolex" : "bg-panel text-muted hover:text-ink"
+              }`}
               aria-pressed={mode === k.id}
               data-testid={`scale-mode-${k.id}`}
               onClick={() => setMode(k.id)}
@@ -386,81 +408,61 @@ export function ScaleFretmapFloat({
             </button>
           ))}
         </div>
-        {boxAvailable && (
-          <div className="flex flex-wrap items-center gap-1.5" data-testid="scale-box-row">
-            <span className="mr-1 text-xs text-muted">Box</span>
-            {[0, 1, 2, 3, 4, 5].map((b) => (
-              <button
-                key={b}
-                type="button"
-                className={`btn btn-sm min-w-[2rem] px-2 ${box === b ? "btn-primary" : "btn-quiet"}`}
-                aria-pressed={box === b}
-                data-testid={`scale-box-${b}`}
-                onClick={() => setBox(b)}
-              >
-                {b === 0 ? "All" : b}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      <p className="border-b border-line px-3 py-2 text-sm text-muted" data-testid="scale-fretmap-legend">
-        <span className="font-semibold text-ink">Key: {tonalKeyName(root, mode)}</span>
+      <p className="truncate border-b border-line px-2 py-1 text-xs text-muted" data-testid="scale-fretmap-legend" title={[
+        `Key: ${tonalKeyName(root, mode)}`,
+        scaleDisplayName(root, mode),
+        notes.join(" · "),
+        boxRange ? `Box ${activeBox}, frets ${boxRange.lo}–${boxRange.hi}` : "",
+        toneChord ? `${toneChord}: ${toneNames.join(" ")}` : "",
+      ].filter(Boolean).join(" · ")}>
+        <span className="font-semibold text-ink">{tonalKeyName(root, mode)}</span>
         {" · "}
-        <span className="font-semibold text-ink">{scaleDisplayName(root, mode)}</span>
-        {" · "}
-        {notes.join(" · ")}
+        {notes.join(" ")}
         {boxRange && (
           <span data-testid="scale-box-legend">{` · Box ${activeBox}, frets ${boxRange.lo}–${boxRange.hi}`}</span>
         )}
         {toneChord && (
-          <span data-testid="scale-chord-legend">{` · ${toneChord} chord tones ringed: ${toneNames.join(" ")}`}</span>
+          <span data-testid="scale-chord-legend">{` · ${toneChord}`}</span>
         )}
-        <span className="text-faint">
-          {selected
-            ? ` — ${selected.symbol} ${selectedVoicingLabel ?? ""} (${voicingIdx + 1}/${selectedVoicings.length}). Use ◀ ▶ for higher/lower shapes.`
-            : chordList
-              ? " — tap a chord diagram for the box shape; header pills ring chord tones on the neck."
-              : " — tap a chord for the box diagram; ◀ ▶ flips through higher fret versions."}
-        </span>
       </p>
 
       {shownLick && (
-        <div className="grid gap-2 border-b border-line px-3 py-2" data-testid="lick-bar">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="grid gap-1 border-b border-line px-2 py-1" data-testid="lick-bar">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              className={`btn btn-sm ${playing ? "btn-primary" : "btn-quiet"}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${playing ? "bg-maple text-tolex" : "bg-panel text-muted"}`}
               aria-pressed={playing}
               data-testid="lick-play"
               onClick={() => onPlayLick?.(shownLick)}
             >
               <span aria-hidden>{playing ? "■" : "▶"}</span> {playing ? "Stop" : "Play"}
             </button>
-            <span className="min-w-0 flex-1 text-sm">
+            <span className="min-w-0 flex-1 truncate text-sm">
               <span className="font-semibold text-ink">{shownLick.title}</span>
               <span className="text-muted">{` · ${shownLick.sub}`}</span>
             </span>
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="rounded-full bg-panel px-2.5 py-1 text-xs font-semibold text-muted"
               data-testid="lick-clear"
               onClick={() => {
                 setLickCleared(true);
                 onClearLick?.();
               }}
             >
-              Clear lick
+              Clear
             </button>
           </div>
-          <LickTab notes={shownLick.notes} litNotes={litNotes} barsPerRow={shownLick.compact ? 3 : 4} className="max-h-40 overflow-y-auto" />
+          <LickTab notes={shownLick.notes} litNotes={litNotes} barsPerRow={shownLick.compact ? 3 : 4} className="max-h-16 overflow-y-auto" />
         </div>
       )}
 
       <div
         data-scroll
-        className="flex gap-3 overflow-x-auto border-b border-line px-3 py-2"
+        className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-2 py-1"
         data-testid="scale-chord-diagrams"
         aria-label="Chord diagrams"
       >
@@ -487,7 +489,7 @@ export function ScaleFretmapFloat({
                 title={`Tap to place ${chord.symbol} on the fretboard`}
                 onClick={() => toggleChord(chord)}
               >
-                <ChordDiagram name={chord.symbol} diagram={voicing.shape} size={0.85} />
+                <ChordDiagram name={chord.symbol} diagram={voicing.shape} size={0.7} />
               </button>
               <div className="mt-0.5 flex items-center gap-1">
                 <button
@@ -500,7 +502,7 @@ export function ScaleFretmapFloat({
                 >
                   ◀
                 </button>
-                <span className="min-w-[3.2rem] text-center text-[0.65rem] text-muted" data-testid={`chord-voicing-label-${chord.symbol}`}>
+                <span className="min-w-[3.2rem] text-center text-xs text-muted" data-testid={`chord-voicing-label-${chord.symbol}`}>
                   {voicing.label}
                   {n > 1 ? ` · ${idx + 1}/${n}` : ""}
                 </span>
@@ -515,7 +517,7 @@ export function ScaleFretmapFloat({
                   ▶
                 </button>
               </div>
-              <span className="text-center text-[0.65rem] text-faint">{chord.roman}</span>
+              <span className="text-center text-xs text-faint">{chord.roman}</span>
             </div>
           );
         })}
@@ -524,12 +526,13 @@ export function ScaleFretmapFloat({
       <div
         ref={scrollRef}
         data-scroll
-        className="scroll-x min-h-0 flex-1 overflow-x-auto overflow-y-auto px-2 py-3"
+        className="scroll-x min-h-0 flex-1 overflow-x-auto overflow-y-auto px-2 py-1"
         data-testid="scale-fretmap-scroll"
       >
         <ScaleFretmapNeck
           cells={cells}
           chordShape={selectedShape}
+          dense
           {...(solo
             ? {
                 root,
@@ -544,12 +547,12 @@ export function ScaleFretmapFloat({
       </div>
 
       {solo && (
-        <p className="border-t border-line px-3 py-1.5 text-xs text-muted" data-testid="scale-fretmap-key">
+        <p className="truncate border-t border-line px-2 py-0.5 text-[0.6rem] text-muted" data-testid="scale-fretmap-key">
           {shownLick && !shownLick.compact
-            ? "Number = play order · ↑ bend (full or ½) · ↺ bend and release · / \\ slide · h hammer-on · p pull-off · ~ vibrato · dashed line = double stop"
+            ? "Order · bend · slide · h/p · vibrato · double stop"
             : shownLick
-              ? "Lit note = the note sounding now. The solo plays through the box; scale notes are dimmed."
-              : "Ring = chord tone · dashed ring = chord tone outside the scale · dimmed = outside the box"}
+              ? "Lit = sounding now · scale notes dimmed"
+              : "Ring = chord tone · dimmed = outside box"}
         </p>
       )}
     </div>,
@@ -557,13 +560,28 @@ export function ScaleFretmapFloat({
   );
 }
 
+/** Space below the floating amp strip (or 8px when the amp is docked). */
+function ampFloatTopPad(): number {
+  if (typeof document === "undefined") return 8;
+  const ampFloat = document.querySelector<HTMLElement>('[data-testid$="-float"]');
+  return ampFloat ? Math.ceil(ampFloat.getBoundingClientRect().bottom) + 6 : 8;
+}
+
+function floatMaxHeight(): string {
+  const top = ampFloatTopPad();
+  // Keep the whole panel (and its neck) inside the viewport under the amp strip.
+  return `min(720px, calc(100dvh - ${top}px - 10px))`;
+}
+
 function clampToViewport(p: Pos): Pos {
   const h = typeof window !== "undefined" ? window.innerHeight : 800;
   const w = typeof window !== "undefined" ? window.innerWidth : 1200;
-  const panelH = 360;
+  const panelH = 320;
   const panelW = 300;
+  const topPad = ampFloatTopPad();
+  const maxH = Math.max(240, h - topPad - 10);
   return {
     x: Math.min(Math.max(8, w - panelW - 8), Math.max(8, p.x)),
-    y: Math.min(Math.max(8, h - panelH - 8), Math.max(8, p.y)),
+    y: Math.min(Math.max(topPad, h - Math.min(panelH, maxH) - 8), Math.max(topPad, p.y)),
   };
 }

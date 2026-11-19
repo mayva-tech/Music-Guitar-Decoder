@@ -1,16 +1,26 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState } from "react";
-import { ChordLab } from "@/components/movable/ChordLab";
 import { FrameStudio, VariationCards, type FrameState } from "@/components/movable/FrameSection";
-import { ProgressionLab } from "@/components/movable/ProgressionLab";
 import { KeyPicker } from "@/components/movable/shared";
 import { useMovableAudio } from "@/components/movable/useMovableAudio";
-import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { AmpRack } from "@/components/AmpRack";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { ROUTINE } from "@/lib/music/movable";
 import { useApp, useHydrated } from "@/lib/store";
+
+/** Defer heavy lower labs so the frame paints first. */
+const ChordLab = dynamic(
+  () => import("@/components/movable/ChordLab").then((m) => ({ default: m.ChordLab })),
+  { ssr: false, loading: () => <div className="surface h-40 animate-pulse rounded-2xl" aria-hidden /> },
+);
+const ProgressionLab = dynamic(
+  () => import("@/components/movable/ProgressionLab").then((m) => ({ default: m.ProgressionLab })),
+  { ssr: false, loading: () => <div className="surface h-40 animate-pulse rounded-2xl" aria-hidden /> },
+);
 
 const STEPS: [href: string, title: string][] = [
   ["#frame", "The movable frame"],
@@ -23,9 +33,11 @@ const STEPS: [href: string, title: string][] = [
 export default function AnyKeyPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
+  const storedAmp = useApp((s) => s.prefs.amp);
   const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
+  const amp = hydrated ? normalizeAmp(storedAmp) : AMP_PRESETS.clean;
   const setPrefs = useApp((s) => s.setPrefs);
-  const audio = useMovableAudio(leadTone);
+  const audio = useMovableAudio(leadTone, amp);
   const [frame, setFrame] = useState<FrameState>({ tonic: 9, family: "minor", anchor: 6, place: 0, varId: "minor-pent", labels: "finger" });
   const set = (patch: Partial<FrameState>) => setFrame((f) => ({ ...f, ...patch }));
 
@@ -45,8 +57,15 @@ export default function AnyKeyPage() {
               onChange={(pc) => { audio.stop(); set({ tonic: pc, place: 0 }); }} />
           </div>
         </div>
-        <LeadToneSelector value={leadTone} onChange={(t) => setPrefs({ leadTone: t })} testId="mv-tone" compact />
       </header>
+      <AmpRack
+        tone={leadTone}
+        amp={amp}
+        onTone={(t) => setPrefs({ leadTone: t })}
+        onAmp={(a) => setPrefs({ amp: a })}
+        testId="mv-amp"
+        compact
+      />
 
       <nav aria-label="Steps" className="grid grid-cols-2 gap-2 min-[640px]:grid-cols-3 min-[1000px]:grid-cols-5" data-testid="mv-steps">
         {STEPS.map(([href, title], i) => (

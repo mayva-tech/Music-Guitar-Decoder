@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lightScope } from "@/components/solo/useSoloAudio";
+import { DEFAULT_AMP, normalizeAmp, type AmpKnobs } from "@/lib/audio/amp";
 import type { LeadTone } from "@/lib/audio/leadTone";
 import { getTheoryPlayer, type LeadSound } from "@/lib/theory/player";
 
@@ -20,16 +21,20 @@ export interface MovableAudio {
 }
 
 /** One transport for the page through the shared Theory player: starting anything stops the rest. */
-export function useMovableAudio(leadTone: LeadTone): MovableAudio {
+export function useMovableAudio(leadTone: LeadTone, amp: AmpKnobs = DEFAULT_AMP): MovableAudio {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const token = useRef(0);
   const scope = useRef<string | null>(null);
   const tone = useRef(leadTone);
+  const ampRef = useRef(normalizeAmp(amp));
   const builder = useRef<(() => LeadSound) | null>(null);
 
   useEffect(() => {
     tone.current = leadTone;
   }, [leadTone]);
+  useEffect(() => {
+    ampRef.current = normalizeAmp(amp);
+  }, [amp]);
 
   const stop = useCallback(() => {
     token.current += 1;
@@ -55,6 +60,7 @@ export function useMovableAudio(leadTone: LeadTone): MovableAudio {
     void getTheoryPlayer()
       .play(build(), hl, {
         leadTone: tone.current,
+        amp: ampRef.current,
         loop,
         nextExample: () => (builder.current ?? build)(),
       })

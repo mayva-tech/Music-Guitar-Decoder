@@ -46,6 +46,11 @@ interface Props {
   litNotes?: ReadonlySet<number>;
   /** Crop to a fret range (small card diagrams); string letters move to a left gutter. */
   fretWindow?: { from: number; to: number };
+  /**
+   * Shorter string spacing + fluid SVG height for the floating map so all six
+   * strings stay on screen under the amp strip.
+   */
+  dense?: boolean;
 }
 
 const BOX_DIM = 0.16;
@@ -87,13 +92,27 @@ export function ScaleFretmapNeck({
   lick = null,
   litNotes,
   fretWindow,
+  dense = false,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const frets = MAX_FRET;
   const lay = useMemo(
-    () => computeLayout({ handedness: "right", view: "beginner", frets, equalSpacing }),
-    [equalSpacing, frets],
+    () => computeLayout({
+      handedness: "right",
+      view: "beginner",
+      frets,
+      equalSpacing,
+      // Dense float map: slightly shorter neck, but keep enough string gap that dots don’t touch.
+      scale: dense ? 0.9 : 1,
+    }),
+    [equalSpacing, frets, dense],
   );
+  // Vertical distance between neighbouring strings — caps note-circle radius so they never overlap.
+  const stringGap = Math.abs((lay.strings[1]?.y1 ?? 0) - (lay.strings[0]?.y1 ?? 0)) || 34;
+  const noteR = Math.min(dense ? 12 : 13, stringGap / 2 - 2.5);
+  const noteFs = (name: string) => (name.length > 1 ? (dense ? 12 : 11) : (dense ? 15 : 13));
+  const labelFs = dense ? 17 : 15;
+  const fretFs = dense ? 15 : 13;
 
   const scaleCells = cells.filter((c) => c.inScale && c.fret <= frets);
   const highlights = useMemo(
@@ -150,7 +169,7 @@ export function ScaleFretmapNeck({
   // Headroom above string 1 for bend arrows / hammer arcs.
   // Keep a fixed pad whenever a lick is shown so the viewBox (and the neck)
   // does not jump up/down as bars switch between plain notes and bends.
-  const pad = overlay && !compact ? 58 : 0;
+  const pad = overlay && !compact ? (dense ? 48 : 58) : 0;
 
   // Crop geometry for card diagrams.
   const crop = useMemo(() => {
@@ -175,18 +194,28 @@ export function ScaleFretmapNeck({
       ? "Guitar fretboard showing a lick"
       : "Guitar fretboard with scale notes highlighted";
 
+  const fluid = !!crop || dense;
+
   return (
     <svg
       role="img"
       aria-label={label}
       viewBox={viewBox}
-      {...(crop ? {} : { width: lay.width, height: lay.height + pad })}
-      className={crop ? "block h-auto w-full select-none" : "block select-none"}
+      {...(fluid ? {} : { width: lay.width, height: lay.height + pad })}
+      className={
+        dense
+          ? "block h-auto max-h-[min(280px,40vh)] w-full select-none"
+          : crop
+            ? "block h-auto w-full select-none"
+            : "block select-none"
+      }
+      preserveAspectRatio="xMinYMid meet"
       data-testid="scale-fretmap-board"
       data-nut-side={lay.nutSide}
       data-chord-highlight={placing ? "true" : undefined}
       data-box={box ? String(box) : undefined}
       data-lick={lickNotes ? "true" : undefined}
+      data-dense={dense ? "true" : undefined}
     >
       <defs>
         <linearGradient id={`wood-${uid}`} x1="0" y1="0" x2="0" y2="1">
@@ -228,12 +257,12 @@ export function ScaleFretmapNeck({
             stroke={s.string >= 4 ? "#cdb98e" : "#dcd6ca"} strokeWidth={s.gauge} />
           {crop ? (
             <text x={crop.gutterX} y={s.labelPos.y} textAnchor="middle" dominantBaseline="central"
-              fontSize="15" fontWeight="700" fill="var(--color-muted)" data-string-letter={s.string}>
+              fontSize={labelFs} fontWeight="700" fill="var(--color-muted)" data-string-letter={s.string}>
               {s.label.split("· ")[1] ?? s.label}
             </text>
           ) : (
             <text x={s.labelPos.x} y={s.labelPos.y} textAnchor="middle" dominantBaseline="central"
-              fontSize="15" fill="var(--color-ink)">
+              fontSize={labelFs} fontWeight="700" fill="var(--color-ink)">
               {s.label}
             </text>
           )}
@@ -244,7 +273,7 @@ export function ScaleFretmapNeck({
         .filter((f) => !crop || (f.fret >= crop.from && f.fret <= crop.to))
         .map((f) => (
           <text key={f.fret} x={f.pos.x} y={f.pos.y} textAnchor="middle" dominantBaseline="central"
-            fontSize="13" fill="var(--color-muted)">
+            fontSize={fretFs} fontWeight="600" fill="var(--color-muted)">
             {f.fret}
           </text>
         ))}
@@ -253,7 +282,6 @@ export function ScaleFretmapNeck({
       <g opacity={dimLayer} data-testid="scale-note-layer">
         {scaleCells.map((cell) => {
           const p = at(cell.string, cell.fret);
-          const r = 13;
           const { fill, ink } = noteMarkerColors(cell.name);
           const inside = !inBox || inBox.has(`${cell.string}:${cell.fret}`);
           return (
@@ -266,9 +294,9 @@ export function ScaleFretmapNeck({
               data-pos={inBox ? `${cell.string}:${cell.fret}` : undefined}
               opacity={inBox && !inside ? BOX_DIM : undefined}
             >
-              <circle r={r} fill={fill} />
+              <circle r={noteR} fill={fill} />
               <text textAnchor="middle" dominantBaseline="central"
-                fontSize={cell.name.length > 1 ? 10 : 12} fontWeight="800" fill={ink}>
+                fontSize={noteFs(cell.name)} fontWeight="800" fill={ink}>
                 {cell.name}
               </text>
             </g>
@@ -283,7 +311,7 @@ export function ScaleFretmapNeck({
             const p = at(c.string, c.fret);
             if (c.inScale) {
               return (
-                <circle key={`ring-${c.string}-${c.fret}`} cx={p.x} cy={p.y} r={17} fill="none"
+                <circle key={`ring-${c.string}-${c.fret}`} cx={p.x} cy={p.y} r={noteR + 4} fill="none"
                   stroke="var(--color-maple)" strokeWidth="3" data-chord-ring={`${c.string}:${c.fret}`} />
               );
             }
@@ -291,9 +319,9 @@ export function ScaleFretmapNeck({
             return (
               <g key={`out-${c.string}-${c.fret}`} transform={`translate(${p.x} ${p.y})`}
                 data-chord-outside={`${c.string}:${c.fret}`} data-note={c.name}>
-                <circle r={14} fill="#1a1b1e" fillOpacity="0.55" stroke="var(--color-maple)" strokeWidth="2.5" strokeDasharray="4 3" />
+                <circle r={noteR + 1} fill="#1a1b1e" fillOpacity="0.55" stroke="var(--color-maple)" strokeWidth="2.5" strokeDasharray="4 3" />
                 <text textAnchor="middle" dominantBaseline="central"
-                  fontSize={c.name.length > 1 ? 10 : 12} fontWeight="800" fill={fill}>
+                  fontSize={noteFs(c.name)} fontWeight="800" fill={fill}>
                   {c.name}
                 </text>
               </g>
@@ -351,23 +379,23 @@ export function ScaleFretmapNeck({
                 data-lick-marker={`${m.string}:${m.fret}`} data-note={m.name}
                 data-melody={accent && m.noteIndices.some((i) => accent.has(i)) ? "true" : undefined}>
                 {accent && m.noteIndices.some((i) => accent.has(i)) && (
-                  <circle r={17.5} fill="none" stroke="var(--color-ink)" strokeWidth="2" strokeOpacity="0.85" />
+                  <circle r={noteR + 4.5} fill="none" stroke="var(--color-ink)" strokeWidth="2" strokeOpacity="0.85" />
                 )}
                 {m.noteIndices.map((ni, k) => (
                   <g key={ni} className={`solo-hl${litNotes?.has(ni) ? " is-on" : ""}`} data-hl={`n${ni}`}>
-                    <circle className="solo-ring" r={19} fill="none" stroke="var(--color-maple)" strokeWidth="3.5" />
+                    <circle className="solo-ring" r={noteR + 6} fill="none" stroke="var(--color-maple)" strokeWidth="3.5" />
                     {k === 0 && (
                       <>
-                        <circle r={14} fill={fill} stroke="#1a1b1e" strokeWidth="2.5" />
+                        <circle r={noteR + 1} fill={fill} stroke="#1a1b1e" strokeWidth="2.5" />
                         <text textAnchor="middle" dominantBaseline="central"
-                          fontSize={m.name.length > 1 ? 10 : 12} fontWeight="800" fill={ink}>
+                          fontSize={noteFs(m.name)} fontWeight="800" fill={ink}>
                           {m.name}
                         </text>
                         {!compact && (
                           <g data-order-badge={m.order}>
-                            <circle cx={12} cy={-12} r={7.5} fill="var(--color-maple)" stroke="#1a1b1e" strokeWidth="1.5" />
-                            <text x={12} y={-11.5} textAnchor="middle" dominantBaseline="central"
-                              fontSize="9.5" fontWeight="900" fill="#1a1b1e">
+                            <circle cx={13} cy={-13} r={8.5} fill="var(--color-maple)" stroke="#1a1b1e" strokeWidth="1.5" />
+                            <text x={13} y={-12.5} textAnchor="middle" dominantBaseline="central"
+                              fontSize="11" fontWeight="900" fill="#1a1b1e">
                               {m.order}
                             </text>
                           </g>
@@ -447,6 +475,12 @@ function GlyphShape({
       let d = `M${x0} ${p.y}`;
       for (let i = 0; i < 4; i++) d += ` q3 ${i % 2 ? 6 : -6} 6 0`;
       return <path data-glyph="vibrato" d={d} stroke={stroke} strokeWidth="2" fill="none" strokeLinecap="round" />;
+    }
+    case "palm_mute": {
+      const p = at(g.string, g.fret);
+      return (
+        <text data-glyph="palm_mute" x={p.x} y={p.y + 28} {...text} fontSize={10}>PM</text>
+      );
     }
     case "double_stop": {
       const a = at(g.strings[0], g.frets[0]);

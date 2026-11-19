@@ -133,6 +133,39 @@ export function DiagonalPractice({
       </div>
 
       <div className="space-y-2">
+        {/* Play controls sit left, directly above the neck. */}
+        <div className="flex flex-wrap items-center justify-start gap-2" data-testid="dg-play-bar">
+          <button
+            type="button"
+            className="btn btn-primary"
+            aria-pressed={playingFull}
+            onClick={() => run(false)}
+            data-testid="dg-play"
+          >
+            {playingFull ? <IconStop /> : <IconPlay />} {playingFull ? "Stop" : part == null ? "Play the lick" : `Play phrase ${part + 1}`}
+          </button>
+          <button
+            type="button"
+            className={`btn ${playingMelody ? "btn-primary" : "btn-ghost"}`}
+            aria-pressed={playingMelody}
+            onClick={() => run(true)}
+            data-testid="dg-melody"
+          >
+            {playingMelody ? <IconStop /> : <IconPlay />} {playingMelody ? "Stop" : "Melody only"}
+          </button>
+          <button
+            type="button"
+            className={`btn ${picking ? "btn-primary" : "btn-ghost"}`}
+            aria-pressed={picking}
+            onClick={() => setPicking((v) => !v)}
+            data-testid="dg-pick-notes"
+          >
+            Pick it note by note
+          </button>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={onShowMap} data-testid="dg-show-map">
+            Show on fretboard map
+          </button>
+        </div>
         <ScrollablePracticeNeck
           cells={cells}
           root={lick.root}
@@ -213,39 +246,6 @@ export function DiagonalPractice({
             );
           })}
         </ul>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="btn btn-primary"
-          aria-pressed={playingFull}
-          onClick={() => run(false)}
-          data-testid="dg-play"
-        >
-          {playingFull ? <IconStop /> : <IconPlay />} {playingFull ? "Stop" : part == null ? "Play the lick" : `Play phrase ${part + 1}`}
-        </button>
-        <button
-          type="button"
-          className={`btn ${playingMelody ? "btn-primary" : "btn-ghost"}`}
-          aria-pressed={playingMelody}
-          onClick={() => run(true)}
-          data-testid="dg-melody"
-        >
-          {playingMelody ? <IconStop /> : <IconPlay />} {playingMelody ? "Stop" : "Melody only"}
-        </button>
-        <button
-          type="button"
-          className={`btn ${picking ? "btn-primary" : "btn-ghost"}`}
-          aria-pressed={picking}
-          onClick={() => setPicking((v) => !v)}
-          data-testid="dg-pick-notes"
-        >
-          Pick it note by note
-        </button>
-        <button type="button" className="btn btn-quiet btn-sm" onClick={onShowMap} data-testid="dg-show-map">
-          Show on fretboard map
-        </button>
       </div>
 
       {picking && (

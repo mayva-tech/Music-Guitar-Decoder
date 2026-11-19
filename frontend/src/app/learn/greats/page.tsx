@@ -7,8 +7,9 @@ import { EarFretNeck } from "@/components/ear/EarFretNeck";
 import { LickPicker } from "@/components/greats/LickPicker";
 import { IconPlay, IconStop } from "@/components/Icons";
 import { KeyChip } from "@/components/KeyChip";
-import { LeadToneSelector } from "@/components/LeadToneSelector";
+import { AmpRack } from "@/components/AmpRack";
 import { ScaleFretmapFloat } from "@/components/ScaleFretmapFloat";
+import { AMP_PRESETS, normalizeAmp } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, normalizeLeadTone } from "@/lib/audio/leadTone";
 import { LickTab } from "@/components/solo/LickTab";
 import { LickNeck, chordListFor, mapRequestForLick, type MapRequest } from "@/components/solo/shared";
@@ -23,9 +24,11 @@ import { getTheoryPlayer } from "@/lib/theory/player";
 export default function GuitarGreatsPage() {
   const hydrated = useHydrated();
   const storedTone = useApp((s) => s.prefs.leadTone);
+  const storedAmp = useApp((s) => s.prefs.amp);
   const setPrefs = useApp((s) => s.setPrefs);
   const leadTone = hydrated ? normalizeLeadTone(storedTone) : DEFAULT_LEAD_TONE;
-  const audio = useSoloAudio(leadTone);
+  const amp = hydrated ? normalizeAmp(storedAmp) : AMP_PRESETS.clean;
+  const audio = useSoloAudio(leadTone, amp);
   const [id, setId] = useState(GREATS[0]!.id);
   const [pick, setPick] = useState<string | null>(null);
   const [map, setMap] = useState<MapRequest | null>(null);
@@ -72,9 +75,16 @@ export default function GuitarGreatsPage() {
             <Link href="/learn/solo" className="btn btn-quiet btn-sm">Lead solos</Link>
             <Link href="/learn/caged" className="btn btn-quiet btn-sm">CAGED map</Link>
           </div>
-          <LeadToneSelector value={leadTone} onChange={(t) => setPrefs({ leadTone: t })} testId="greats-tone" compact hint={false} />
         </div>
       </PageTitle>
+      <AmpRack
+        tone={leadTone}
+        amp={amp}
+        onTone={(t) => setPrefs({ leadTone: t })}
+        onAmp={(a) => setPrefs({ amp: a })}
+        testId="greats-amp"
+        compact
+      />
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Choose a guitarist" data-testid="greats-roster">
         {GREATS.map((g) => (

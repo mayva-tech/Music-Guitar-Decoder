@@ -22,6 +22,8 @@ export interface Articulation {
   slideFromMidi?: number;
   legato?: boolean; // hammer-on / pull-off: no new pick attack
   vibrato?: boolean;
+  /** 0..1 palm mute / chug intensity (short gate, punchy attack). */
+  palmMute?: number;
 }
 
 /** Shuffle feel: the off-beat eighth is played late (written straight, played long-short). */
@@ -77,8 +79,25 @@ export function articulation(n: PlayableNote, prev?: PlayableNote): Articulation
   if ((n.technique === "slide_up" || n.technique === "slide_down") && n.slide_from_fret != null)
     a.slideFromMidi = n.midi - (n.fret - n.slide_from_fret);
   if (n.technique === "hammer_on" || n.technique === "pull_off" || (a.slideFromMidi != null && prev)) a.legato = true;
+  if (n.technique === "palm_mute") a.palmMute = 1;
   if (n.vibrato) a.vibrato = true;
   return Object.keys(a).length ? a : undefined;
+}
+
+/** Merge a global amp Palm amount into a note articulation (note technique wins when stronger). */
+export function withPalmMute(art: Articulation | undefined, ampMute: number): Articulation | undefined {
+  const m = Math.max(0, Math.min(1, ampMute));
+  const noteMute = art?.palmMute ?? 0;
+  const palmMute = Math.max(noteMute, m);
+  if (palmMute <= 0.02) return art;
+  return { ...(art ?? {}), palmMute };
+}
+
+/** Gate length for a palm-muted chug (seconds). */
+export function palmMuteGate(dur: number, mute: number): number {
+  if (mute <= 0.02) return dur;
+  const maxGate = 0.038 + (1 - mute) * 0.12;
+  return Math.max(0.028, Math.min(dur, maxGate));
 }
 
 export function buildSchedule(arr: Arrangement, opts: ScheduleOptions = {}): Schedule {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setHighlight } from "@/components/theory/highlight";
+import { DEFAULT_AMP, normalizeAmp, type AmpKnobs } from "@/lib/audio/amp";
 import type { LeadTone } from "@/lib/audio/leadTone";
 import { jamExample, LICKS_BY_ID, lickExample, type JamTrack, type Lick } from "@/lib/music/soloGuide";
 import { getTheoryPlayer } from "@/lib/theory/player";
@@ -34,18 +35,22 @@ export interface SoloAudio {
  * One transport for the whole workshop: starting anything stops whatever played before,
  * leaving the page stops everything. Backing + lead go through the shared Theory player.
  */
-export function useSoloAudio(leadTone: LeadTone): SoloAudio {
+export function useSoloAudio(leadTone: LeadTone, amp: AmpKnobs = DEFAULT_AMP): SoloAudio {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [jamBar, setJamBar] = useState<number | null>(null);
   const token = useRef(0);
   const scope = useRef<string | null>(null);
   const tone = useRef(leadTone);
+  const ampRef = useRef(normalizeAmp(amp));
   const jamBpm = useRef(90);
   const jamTrack = useRef<JamTrack | null>(null);
 
   useEffect(() => {
     tone.current = leadTone;
   }, [leadTone]);
+  useEffect(() => {
+    ampRef.current = normalizeAmp(amp);
+  }, [amp]);
 
   const stop = useCallback(() => {
     token.current += 1;
@@ -71,7 +76,7 @@ export function useSoloAudio(leadTone: LeadTone): SoloAudio {
   /** Plays one lick; resolves when it ends or is stopped. Returns false if superseded. */
   const runLick = useCallback(async (lick: Lick, myToken: number, sc: string): Promise<boolean> => {
     scope.current = sc;
-    await getTheoryPlayer().play(lickExample(lick), hl, { lead: lick.notes, leadTone: tone.current });
+    await getTheoryPlayer().play(lickExample(lick), hl, { lead: lick.notes, leadTone: tone.current, amp: ampRef.current });
     return token.current === myToken;
   }, [hl]);
 

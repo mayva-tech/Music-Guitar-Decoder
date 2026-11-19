@@ -15,7 +15,7 @@ Style = Literal["classic_rock", "blues", "ballad", "pop", "acoustic"]
 Handedness = Literal["right", "left"]
 HarmonizationKind = Literal["simple", "genre", "alternative"]
 Genre = Literal["rock", "pop", "blues"]
-Technique = Literal["slide_up", "slide_down", "hammer_on", "pull_off", "bend", "bend_release"]
+Technique = Literal["slide_up", "slide_down", "hammer_on", "pull_off", "bend", "bend_release", "palm_mute"]
 TechniquesMode = Literal["auto", "none", "slides", "all"]
 
 

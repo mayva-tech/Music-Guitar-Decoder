@@ -47,13 +47,14 @@ describe("pluck voice settings", () => {
   });
 
   it("starts with body and keeps a warm shelf while it rings", () => {
-    const v = pluckVoice({ partials: G_STRING_PARTIALS, base: 560, bright: 2.4, filterSustain: 0.3 });
+    const v = pluckVoice({ partials: G_STRING_PARTIALS, base: 480, bright: 2.6, filterSustain: 0.28 });
     const settle = v.filterEnvelope.baseFrequency * 2 ** (v.filterEnvelope.octaves * v.filterEnvelope.sustain);
     const peak = v.filterEnvelope.baseFrequency * 2 ** v.filterEnvelope.octaves;
     expect(peak).toBeGreaterThan(2500);
     expect(settle).toBeLessThan(peak);
-    expect(settle).toBeGreaterThan(800);
-    expect(v.filterEnvelope.sustain).toBeGreaterThanOrEqual(0.25);
+    expect(settle).toBeGreaterThan(700);
+    expect(v.filterEnvelope.sustain).toBeGreaterThanOrEqual(0.22);
+    expect(v.envelope.attack).toBeLessThan(0.003);
   });
 
   it("gives overdriven parts a string ring and the rhythm part a chug", () => {

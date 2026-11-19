@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { clearHighlights, setHighlight } from "@/components/theory/highlight";
+import { DEFAULT_AMP, normalizeAmp, type AmpKnobs } from "@/lib/audio/amp";
 import { DEFAULT_LEAD_TONE, type LeadTone } from "@/lib/audio/leadTone";
 import { lickBar } from "@/lib/music/backingSolo";
 import { barSound, countInSound, type BackingTrack } from "@/lib/music/backingTracks";
@@ -16,6 +17,7 @@ export interface LoopSettings {
   /** Lick to play on the lead voice along with the loop (null = backing only). */
   lick?: PlayableNote[] | null;
   leadTone?: LeadTone;
+  amp?: AmpKnobs;
 }
 
 export interface BackingAudio {
@@ -139,6 +141,7 @@ export function useBackingAudio(scope: RefObject<HTMLElement | null>): BackingAu
       .play(first, onHighlight, {
         loop: true,
         leadTone: s.leadTone ?? DEFAULT_LEAD_TONE,
+        amp: normalizeAmp(s.amp ?? DEFAULT_AMP),
         nextExample: () => {
           pos += 1;
           if (pos >= 0 && pos % len === 0) {

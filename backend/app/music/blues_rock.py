@@ -17,9 +17,9 @@ from .theory import midi_to_name, name_to_midi
 COLLECTION = "blues_rock"
 BEATS_PER_BAR = 4
 
-_TOKEN = re.compile(r"^([1-6]):([hp/\\]?)(\d{1,2})(?:([br])([12]))?(~?)(?:=(\d*\.?\d+))?$")
+_TOKEN = re.compile(r"^([1-6]):([mhp/\\]?)(\d{1,2})(?:([br])([12]))?(~?)(?:=(\d*\.?\d+))?$")
 _REST = re.compile(r"^-(?:=(\d*\.?\d+))?$")
-_TECH = {"h": "hammer_on", "p": "pull_off", "/": "slide_up", "\\": "slide_down"}
+_TECH = {"h": "hammer_on", "p": "pull_off", "/": "slide_up", "\\": "slide_down", "m": "palm_mute"}
 
 
 def _tab(spec: str) -> tuple[tuple, int]:
@@ -27,7 +27,8 @@ def _tab(spec: str) -> tuple[tuple, int]:
 
     Bars are separated by '|' and must each last exactly 4 beats.
     Note token: <string>:<prefix><fret><suffix>[=<beats>]   (beats default to 0.5, an eighth note)
-        prefix   h hammer-on · p pull-off · / slide up · \\ slide down (all from the previous note on that string)
+        prefix   h hammer-on · p pull-off · / slide up · \\ slide down · m palm mute
+                 (h/p/slides from the previous note on that string; m is a picked chug)
         suffix   b1 / b2 bend up a half / whole step (you hear the bent pitch)
                  r1 / r2 bend up and release back to the fretted note
                  ~ vibrato (after any bend suffix)
@@ -167,13 +168,13 @@ RIFFS = (
 
     _br("iron-horse", "Iron Horse", "Hard-rock riff", "rock", "E minor", 96, 1,
         ("Low-string riffing", "Hammer-ons and pull-offs", "A chromatic walk-down"),
-        ("Palm-mute the open E notes lightly and let the fretted notes ring out.",
+        ("Palm-mute the open E notes (marked m in TAB) and let the fretted notes ring out.",
          "Bars 5–6 are the same riff moved to the A string — same frets, one string up.",
          "Bar 4 walks down G – F♯ – F – E; bar 8 walks down to F♯ to lead you back to the top.",
          "Solo over it: E minor pentatonic at fret 12; land on E over E5, A over A5 and B over B5."),
         "E5 E5 E5 E5 A5 A5 G5,A5 B5",
-        "6:0 6:0 6:3 6:0 5:0 5:h2 6:0 6:3 | 5:0 5:2 5:p0 6:3 6:0=2 | "
-        "6:0 6:0 6:3 6:0 5:0 5:h2 6:0 6:3 | 5:0 5:2 5:p0 6:3 6:2 6:1 6:0=1 | "
+        "6:m0 6:m0 6:3 6:m0 5:0 5:h2 6:m0 6:3 | 5:0 5:2 5:p0 6:3 6:m0=2 | "
+        "6:m0 6:m0 6:3 6:m0 5:0 5:h2 6:m0 6:3 | 5:0 5:2 5:p0 6:3 6:2 6:1 6:m0=1 | "
         "5:0 5:0 5:3 5:0 4:0 4:h2 5:0 5:3 | 4:0 4:2 4:p0 5:3 5:0=2 | "
         "6:3 6:3 6:5 6:3 5:0 5:0 5:2 5:0 | 5:2=1 5:2 5:5 5:2 5:0 6:3 6:2"),
 
